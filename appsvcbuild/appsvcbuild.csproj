@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AzureFunctionsVersion>v2</AzureFunctionsVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LibGit2Sharp" Version="0.25.3" />
+    <PackageReference Include="LibGit2Sharp.NativeBinaries" Version="1.0.235" />
+    <PackageReference Include="Microsoft.Azure.KeyVault" Version="3.0.1" />
+    <PackageReference Include="Microsoft.Azure.Management.AppService.Fluent" Version="1.16.1" />
+    <PackageReference Include="Microsoft.Azure.Management.ContainerRegistry" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Azure.Management.ContainerRegistry.Fluent" Version="1.16.1" />
+    <PackageReference Include="Microsoft.Azure.Management.Fluent" Version="1.16.1" />
+    <PackageReference Include="Microsoft.Azure.Management.Storage.Fluent" Version="1.16.1" />
+    <PackageReference Include="Microsoft.Azure.Management.Websites" Version="2.0.0" />
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.23" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    <PackageReference Include="Sendgrid" Version="9.10.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="host.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="local.settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+</Project>

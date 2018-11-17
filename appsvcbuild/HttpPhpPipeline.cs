@@ -1,15 +1,19 @@
 using System;
-using System.Text;
+using System.IO;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.Text;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Threading.Tasks;
-using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
-using Newtonsoft.Json;
 using LibGit2Sharp;
-using System.IO;
 using LibGit2Sharp.Handlers;
 using Microsoft.Azure.Management.Fluent;
 using Microsoft.Rest.Azure;
@@ -29,12 +33,14 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 using System.Text.RegularExpressions;
+using System.Web.Http;
+using Microsoft.ApplicationInsights;
 
 namespace appsvcbuild
 {
-    public static class PhpBuildPipeline
+    public static class HttpPhpPipeline
     {
-        private static TraceWriter _log;
+        private static ILogger _log;
         private static String _githubURL = "https://github.com/patricklee2/php-ci.git";
 
         private static SecretsUtils _secretsUtils;
@@ -42,83 +48,124 @@ namespace appsvcbuild
         private static DockerhubUtils _dockerhubUtils;
         private static GitHubUtils _githubUtils;
         private static PipelineUtils _pipelineUtils;
+        private static StringBuilder _emailLog;
+        private static TelemetryClient _telemetry;
 
-        // run 8am utc, 12am pst
-        [FunctionName("PhpBuildPipeline")]
-        public static async System.Threading.Tasks.Task Run([TimerTrigger("0 8 * * *")]TimerInfo myTimer, TraceWriter log)
+        [FunctionName("HttpPhpPipeline")]
+        public static async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
+            ILogger log)
         {
-            StringBuilder emailLog = new StringBuilder();
-            try
+            _telemetry = new TelemetryClient();
+            _telemetry.TrackEvent("HttpPhpPipeline started");
+            await InitUtils(log);
+
+            LogInfo("HttpPhpPipeline request received");
+
+            String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            dynamic data = JsonConvert.DeserializeObject(requestBody);
+            List<String> newTags = data?.newTags.ToObject<List<String>>();
+
+            if (newTags == null)
             {
-                _secretsUtils = new SecretsUtils();
-                await _secretsUtils.GetSecrets();
-                _mailUtils = new MailUtils(new SendGridClient(_secretsUtils._sendGridApiKey), "Php");
-                _dockerhubUtils = new DockerhubUtils();
-                _githubUtils = new GitHubUtils(_secretsUtils._gitToken);
-                _pipelineUtils = new PipelineUtils(
-                    new ContainerRegistryManagementClient(_secretsUtils._credentials),
-                    new WebSiteManagementClient(_secretsUtils._credentials),
-                    _secretsUtils._subId
-                    );
-
-                _log = log;
-                _mailUtils._log = log;
-                _dockerhubUtils._log = log;
-                _githubUtils._log = log;
-                _pipelineUtils._log = log;
-
-                _log.Info($"php appsvcbuild executed at: { DateTime.Now }");
-                emailLog.AppendLine($"php appsvcbuild executed at: { DateTime.Now }");
-
-                List<String> newTags = await _dockerhubUtils.PollDockerhub("https://registry.hub.docker.com/v2/repositories/library/php/tags",
-                    new Regex("^[0-9]+\\.[0-9]+\\.[0-9]+-apache$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-                    DateTime.Now.AddDays(-1));
-
-                _log.Info(String.Format("new php tags found {0}", String.Join(", ", newTags)));
-                emailLog.AppendLine(String.Format("new php tags found {0}", String.Join(", ", newTags)));
-
-                List<String> newVersions = new List<String>();
-                foreach (String t in newTags)
+                LogInfo("Failed: missing parameters `newTags` in body");
+                await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
+                return new BadRequestObjectResult("Failed: missing parameters `newTags` in body");
+            }
+            else if (newTags.Count == 0)
+            {
+                LogInfo("no new php tags found");
+                await _mailUtils.SendSuccessMail(newTags, GetLog());
+                return (ActionResult)new OkObjectResult($"no new php tags found");
+            }
+            else
+            {
+                try
                 {
-                    newVersions.Add(t.Replace("-apache", ""));
+                    LogInfo($"HttpPhpPipeline executed at: { DateTime.Now }");
+                    LogInfo(String.Format("new php tags found {0}", String.Join(", ", newTags)));
+                
+                    List<String> newVersions = MakePipeline(newTags, log);
+                    await _mailUtils.SendSuccessMail(newVersions, GetLog());
+                    return (ActionResult)new OkObjectResult($"built new php images: {String.Join(", ", newVersions)}");
                 }
-
-                foreach (String version in newVersions)
+                catch (Exception e)
                 {
-                    int tries = 3;
-                    while (true)
+                    LogInfo(e.ToString());
+                    _telemetry.TrackException(e);
+                    await _mailUtils.SendFailureMail(e.ToString(), GetLog());
+                    return new InternalServerErrorResult();
+                }
+            }
+        }
+
+        public static void LogInfo(String message)
+        {
+            _emailLog.Append(message);
+            _log.LogInformation(message);
+            _telemetry.TrackEvent(message);
+        }
+        public static String GetLog()
+        {
+            return _emailLog.ToString();
+        }
+
+        public static async System.Threading.Tasks.Task InitUtils(ILogger log)
+        {
+            _emailLog = new StringBuilder();
+            _secretsUtils = new SecretsUtils();
+            await _secretsUtils.GetSecrets();
+            _mailUtils = new MailUtils(new SendGridClient(_secretsUtils._sendGridApiKey), "Php");
+            _dockerhubUtils = new DockerhubUtils();
+            _githubUtils = new GitHubUtils(_secretsUtils._gitToken);
+            _pipelineUtils = new PipelineUtils(
+                new ContainerRegistryManagementClient(_secretsUtils._credentials),
+                new WebSiteManagementClient(_secretsUtils._credentials),
+                _secretsUtils._subId
+                );
+
+            _log = log;
+            _mailUtils._log = log;
+            _dockerhubUtils._log = log;
+            _githubUtils._log = log;
+            _pipelineUtils._log = log;
+        }
+
+        public static List<string> MakePipeline(List<String> newTags, ILogger log)
+        {
+            List<String> newVersions = new List<String>();
+            foreach (String t in newTags)
+            {
+                newVersions.Add(t.Replace("-apache", ""));
+            }
+
+            foreach (String version in newVersions)
+            {
+                int tries = 3;
+                while (true)
+                {
+                    try
                     {
-                        try
+                        tries--;
+                        _mailUtils._version = version;
+                        PushGithub(version);
+                        CreatePhpPipeline(version);
+                        LogInfo(String.Format("php {0} built", version));
+                        break;
+                    }
+                    catch (Exception e)
+                    {
+                        LogInfo(e.ToString());
+                        if (tries <= 0)
                         {
-                            tries--;
-                            _mailUtils._version = version;
-                            PushGithub(version);
-                            CreatePhpPipeline(version);
-                            _log.Info(String.Format("php {0} built", version));
-                            emailLog.AppendLine(String.Format("php {0} built", version));
-                            break;
+                            LogInfo(String.Format("php {0} failed", version));
+                            throw e;
                         }
-                        catch (Exception e)
-                        {
-                            _log.Info(e.ToString());
-                            emailLog.AppendLine(e.ToString());
-                            if (tries <= 0)
-                            {
-                                _log.Info(String.Format("php {0} failed", version));
-                                emailLog.AppendLine(String.Format("php {0} failed", version));
-                                throw e;
-                            }
-                            _log.Info("trying again");
-                            emailLog.AppendLine("trying again");
-                        }
+                        LogInfo("trying again");
                     }
                 }
-                await _mailUtils.SendSuccessMail(newVersions, emailLog.ToString());
             }
-            catch (Exception e)
-            {
-                await _mailUtils.SendFailureMail(e.ToString(), emailLog.ToString());
-            }
+            return newVersions;
         }
 
         public static void CreatePhpPipeline(String version)
@@ -129,7 +176,7 @@ namespace appsvcbuild
 
         public static void CreatePhpHostingStartPipeline(String version)
         {
-            _log.Info("creating pipeling for php hostingstart " + version);
+            _log.LogInformation("creating pipeling for php hostingstart " + version);
 
             String phpVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-php-hostingstart-{0}-task", phpVersionDash);
@@ -138,16 +185,16 @@ namespace appsvcbuild
             String gitPath = String.Format("{0}#master:{1}-apache", _githubURL, version);
             String imageName = String.Format("php:{0}-apache", version);
 
-            _log.Info("creating acr task for php hostingstart " + version);
+            _log.LogInformation("creating acr task for php hostingstart " + version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, gitPath, _secretsUtils._gitToken, imageName);
-            _log.Info("creating webapp for php hostingstart " + version);
+            _log.LogInformation("creating webapp for php hostingstart " + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName);
             _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         public static void CreatePhpAppPipeline(String version)
         {
-            _log.Info("creating pipeling for php app " + version);
+            _log.LogInformation("creating pipeling for php app " + version);
 
             String phpVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-php-app-{0}-task", phpVersionDash);
@@ -156,9 +203,9 @@ namespace appsvcbuild
             String gitPath = String.Format("{0}#master:{1}-app-apache", _githubURL, version);
             String imageName = String.Format("phpapp:{0}-apache", version);
 
-            _log.Info("creating acr task for php app" + version);
+            _log.LogInformation("creating acr task for php app" + version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, gitPath, _secretsUtils._gitToken, imageName);
-            _log.Info("creating webapp for php app" + version);
+            _log.LogInformation("creating webapp for php app" + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName);
             _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
@@ -182,7 +229,7 @@ namespace appsvcbuild
 
         private static void PushGithub(String version)
         {
-            _log.Info("creating github files for php " + version);
+            _log.LogInformation("creating github files for php " + version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);

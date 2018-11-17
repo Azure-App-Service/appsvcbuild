@@ -28,12 +28,13 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace appsvcbuild
 {
     public class PipelineUtils
     {
-        public TraceWriter _log { get; set; }
+        public ILogger _log { get; set; }
         private ContainerRegistryManagementClient _registryClient;
         private WebSiteManagementClient _webappClient;
         private String _subscriptionID;
@@ -66,7 +67,7 @@ namespace appsvcbuild
 
         public String CreateTask(String taskName, String gitPath, String gitToken, String imageName)
         {
-            _log.Info("creating task: " + taskName);
+            //_log.Info("creating task: " + taskName);
 
 
             Registry reg = _registryClient.Registries.Get(_rgName, _acrName);
@@ -106,10 +107,10 @@ namespace appsvcbuild
 
             _registryClient.Tasks.Create(_rgName, _acrName, taskName, task);
 
-            _log.Info("running task");
+            //_log.Info("running task");
             Run run = _registryClient.Registries.ScheduleRun(_rgName, _acrName, new TaskRunRequest(taskName));
 
-            _log.Info("Run ID: " + run.RunId);
+            //_log.Info("Run ID: " + run.RunId);
             List<String> waitingStatus = new List<String>();
             
             waitingStatus.Add(RunStatus.Queued);
@@ -118,7 +119,7 @@ namespace appsvcbuild
             int sleepTime = 1;//1 second
             while (waitingStatus.Contains(run.Status))
             {
-                _log.Info("run status : " + run.Status);
+                //_log.Info("run status : " + run.Status);
                 run = _registryClient.Runs.Get(_rgName, _acrName, run.RunId);
                 System.Threading.Thread.Sleep(sleepTime * 1000);  //milliseconds
                 sleepTime = sleepTime * 2;
@@ -128,7 +129,7 @@ namespace appsvcbuild
                 throw new Exception(String.Format("Run Failed {0} {1} {2}", run.Id, run.Name, run.Task));
             }
 
-            _log.Info("run status : " + run.Status);
+            //_log.Info("run status : " + run.Status);
             RegistryListCredentialsResult registryCreds = _registryClient.Registries.ListCredentials(_rgName, _acrName);
             String acrPassword = registryCreds.Passwords[0].Value;
 
@@ -137,12 +138,12 @@ namespace appsvcbuild
 
         public string CreateWebapp(String version, String acrPassword, String appName, String imageName)
         {
-            _log.Info("creating webapp");
+            //_log.Info("creating webapp");
 
             _webappClient.WebApps.Delete(_rgName, appName, false, false);
             AppServicePlan plan = _webappClient.AppServicePlans.Get(_rgName, _planName);
 
-            _log.Info("creating site :" + appName);
+            //_log.Info("creating site :" + appName);
             _webappClient.WebApps.CreateOrUpdate(_rgName, appName,
                 new Site
                 {

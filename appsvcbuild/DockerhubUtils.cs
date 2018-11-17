@@ -8,12 +8,13 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace appsvcbuild
 {
     public class DockerhubUtils
     {
-        public TraceWriter _log { get; set; }
+        public ILogger _log { get; set; }
 
         public DockerhubUtils() { }
 

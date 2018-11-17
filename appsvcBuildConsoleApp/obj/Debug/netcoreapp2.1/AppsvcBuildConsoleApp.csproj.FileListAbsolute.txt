@@ -1,0 +1,16 @@
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\bin\Debug\netcoreapp2.1\host.json
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\bin\Debug\netcoreapp2.1\local.settings.json
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\bin\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.deps.json
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\bin\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.runtimeconfig.json
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\bin\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.runtimeconfig.dev.json
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\bin\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.dll
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\bin\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.pdb
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\bin\Debug\netcoreapp2.1\appsvcbuild.dll
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\bin\Debug\netcoreapp2.1\appsvcbuild.pdb
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\obj\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.csprojAssemblyReference.cache
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\obj\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.csproj.CoreCompileInputs.cache
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\obj\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.AssemblyInfoInputs.cache
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\obj\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.AssemblyInfo.cs
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\obj\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.csproj.CopyComplete
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\obj\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.dll
+C:\Users\patle\work\appsvcbuild\appsvcBuildConsoleApp\obj\Debug\netcoreapp2.1\AppsvcBuildConsoleApp.pdb

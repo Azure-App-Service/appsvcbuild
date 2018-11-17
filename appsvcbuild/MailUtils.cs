@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.Azure.WebJobs.Host;
 using SendGrid;
 using SendGrid.Helpers.Mail;
+using Microsoft.Extensions.Logging;
 
 namespace appsvcbuild
 {
@@ -19,7 +20,7 @@ namespace appsvcbuild
             _stack = stack;
         }
 
-        public TraceWriter _log { get; set; }
+        public ILogger _log { get; set; }
 
         public async System.Threading.Tasks.Task SendSuccessMail(List<String> versions, String log)
         {

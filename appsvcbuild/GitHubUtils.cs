@@ -28,11 +28,13 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+
 namespace appsvcbuild
 {
     public class GitHubUtils
     {
-        public TraceWriter _log { get; set; }
+        public ILogger _log { get; set; }
         private String _gitToken;
 
         public GitHubUtils(String gitToken)
@@ -146,7 +148,7 @@ namespace appsvcbuild
                     Commit commit = repo.Commit(message, author, committer);
                 } catch (Exception e)
                 {
-                    // _log.info("Empty commit");
+                    //_log.info("Empty commit");
                 }
 
                 // git push

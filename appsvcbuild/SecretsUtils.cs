@@ -28,6 +28,8 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+
 
 namespace appsvcbuild
 {
@@ -39,11 +41,13 @@ namespace appsvcbuild
         public String _tenantId { get; set; }
         public String _subId { get; set; }
         public String _sendGridApiKey { get; set; }
+        public String _appsvcbuildfuncMaster { get; set; }
         public AzureCredentials _credentials { get; set; }
 
-        public SecretsUtils() { }
+        public SecretsUtils() {
+        }
 
-        public async System.Threading.Tasks.Task GetSecrets() { 
+        public async System.Threading.Tasks.Task GetSecrets() {
             _clientId = GetAppSetting("clientId");
             _clientSecret = GetAppSetting("clientSecret");
             _tenantId = GetAppSetting("tenantId");
@@ -69,7 +73,7 @@ namespace appsvcbuild
                 });
             _gitToken = (await kvClient.GetSecretAsync("https://appsvcbuild-vault.vault.azure.net/", "gitToken")).Value;
             _sendGridApiKey = (await kvClient.GetSecretAsync("https://appsvcbuild-vault.vault.azure.net/", "sendGridApiKey")).Value;
-
+            _appsvcbuildfuncMaster = (await kvClient.GetSecretAsync("https://appsvcbuild-vault.vault.azure.net/", "appsvcbuildfuncMaster")).Value;
 
             if (_clientId == "")
             {
@@ -94,6 +98,10 @@ namespace appsvcbuild
             if (_sendGridApiKey == "")
             {
                 throw new Exception("missing setting gitToken in sendGridApiKey");
+            }
+            if (_appsvcbuildfuncMaster == "")
+            {
+                throw new Exception("missing setting gitToken in appsvcbuildfuncMaster");
             }
             return;
         }

@@ -1,3 +1,6 @@
 .vs/*
 /appsvcbuild/Properties/launchSettings.json
-
+/appsvcbuildConsole/Properties/launchSettings.json
+/appsvcbuildConsole/Properties/*
+/appsvcbuildConsole/bin/*
+/appsvcbuildConsole/obj/*

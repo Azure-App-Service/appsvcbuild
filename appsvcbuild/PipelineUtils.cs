@@ -41,7 +41,6 @@ namespace appsvcbuild
 
         private String _rgName = "appsvcbuildrg";
         private String _acrName = "appsvcbuildacr";
-        private String _planName = "appsvcbuild-plan";
 
         public PipelineUtils(ContainerRegistryManagementClient registryClient, WebSiteManagementClient webappClient, String subscriptionID) {
             _registryClient = registryClient;
@@ -136,12 +135,12 @@ namespace appsvcbuild
             return acrPassword;
         }
 
-        public string CreateWebapp(String version, String acrPassword, String appName, String imageName)
+        public string CreateWebapp(String version, String acrPassword, String appName, String imageName, String planName)
         {
             //_log.Info("creating webapp");
 
             _webappClient.WebApps.Delete(_rgName, appName, false, false);
-            AppServicePlan plan = _webappClient.AppServicePlans.Get(_rgName, _planName);
+            AppServicePlan plan = _webappClient.AppServicePlans.Get(_rgName, planName);
 
             //_log.Info("creating site :" + appName);
             _webappClient.WebApps.CreateOrUpdate(_rgName, appName,

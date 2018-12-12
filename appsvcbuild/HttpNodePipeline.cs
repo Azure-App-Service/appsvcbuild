@@ -177,33 +177,35 @@ namespace appsvcbuild
 
         public static void CreateNodeHostingStartPipeline(String version)
         {
+            String githubPath = String.Format("https://github.com/patricklee2/node-{0}", version);
             String nodeVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-node-hostingstart-{0}-task", nodeVersionDash);
             String appName = String.Format("appsvcbuild-node-hostingstart-{0}-site", nodeVersionDash);
             String webhookName = String.Format("appsvcbuildnodehostingstart{0}wh", version.Replace(".", ""));
-            String gitPath = String.Format("{0}#master:{1}", _githubURL, version);
             String imageName = String.Format("node:{0}", version);
+            String planName = "appsvcbuild-node-plan";
 
             LogInfo("creating acr task for node hostingstart " + version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, gitPath, _secretsUtils._gitToken, imageName);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             LogInfo("creating webapp for node hostingstart " + version);
-            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName);
+            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
             _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         public static void CreateNodeAppPipeline(String version)
         {
+            String githubPath = String.Format("https://github.com/patricklee2/nodeApp-{0}", version);
             String nodeVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-node-app-{0}-task", nodeVersionDash);
             String appName = String.Format("appsvcbuild-node-app-{0}-site", nodeVersionDash);
             String webhookName = String.Format("appsvcbuildnodeapp{0}wh", version.Replace(".", ""));
-            String gitPath = String.Format("{0}#master:nodeApp-{1}", _githubURL, version);
             String imageName = String.Format("nodeapp:{0}", version);
+            String planName = "appsvcbuild-node-app-plan";
 
             LogInfo("creating acr task for node app" + version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, gitPath, _secretsUtils._gitToken, imageName);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             LogInfo("creating webapp for node app " + version);
-            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName);
+            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
             _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
@@ -214,26 +216,40 @@ namespace appsvcbuild
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
-            String localRepo = String.Format("{0}\\node-ci", parent);
+            String templateRepo = String.Format("{0}\\node-ci", parent);
+            String nodeRepo = String.Format("{0}\\node-{1}", parent, version);
+            String nodeAppRepo = String.Format("{0}\\nodeApp-{1}", parent, version);
 
-            _githubUtils.Clone(_githubURL, localRepo);
+            _githubUtils.Clone(_githubURL, templateRepo);
             _githubUtils.FillTemplate(
-                localRepo,
-                String.Format("{0}\\template", localRepo),
-                String.Format("{0}\\{1}", localRepo, version),
-                String.Format("{0}\\{1}\\DockerFile", localRepo, version),
+                templateRepo,
+                String.Format("{0}\\template", templateRepo),
+                String.Format("{0}\\{1}", templateRepo, version),
+                String.Format("{0}\\{1}\\DockerFile", templateRepo, version),
                 String.Format("FROM node:{0}-alpine\n", version),
                 false);
             _githubUtils.FillTemplate(
-                localRepo,
-                String.Format("{0}\\nodeAppTemplate", localRepo),
-                String.Format("{0}\\nodeApp-{1}", localRepo, version),
-                String.Format("{0}\\nodeApp-{1}\\DockerFile", localRepo, version),
+                templateRepo,
+                String.Format("{0}\\nodeAppTemplate", templateRepo),
+                String.Format("{0}\\nodeApp-{1}", templateRepo, version),
+                String.Format("{0}\\nodeApp-{1}\\DockerFile", templateRepo, version),
                 String.Format("FROM appsvcbuildacr.azurecr.io/node:{0}\n", version),
                 false);
-            _githubUtils.Stage(localRepo, String.Format("{0}\\{1}", localRepo, version));
-            _githubUtils.Stage(localRepo, String.Format("{0}\\nodeApp-{1}", localRepo, version));
-            _githubUtils.CommitAndPush(_githubURL, localRepo, String.Format("[appsvcbuild] Add node {0}", version));
+
+            _githubUtils.CreateDir(nodeRepo);
+            _githubUtils.CreateDir(nodeAppRepo);
+            _githubUtils.DeepCopy(String.Format("{0}\\{1}",templateRepo, version), nodeRepo);
+            _githubUtils.DeepCopy(String.Format("{0}\\nodeApp-{1}", templateRepo, version), nodeAppRepo);
+            _githubUtils.InitGithubAsync(String.Format("node-{0}", version));
+            _githubUtils.InitGithubAsync(String.Format("nodeApp-{0}", version));
+            _githubUtils.Init(nodeRepo);
+            _githubUtils.Init(nodeAppRepo);
+            _githubUtils.AddRemote(nodeRepo, String.Format("node-{0}", version));
+            _githubUtils.AddRemote(nodeAppRepo, String.Format("nodeApp-{0}", version));
+            _githubUtils.Stage(nodeRepo, "*");
+            _githubUtils.Stage(nodeAppRepo, "*");
+            _githubUtils.CommitAndPush(nodeRepo, String.Format("[appsvcbuild] Add node {0}", version));
+            _githubUtils.CommitAndPush(nodeAppRepo, String.Format("[appsvcbuild] Add node {0}", version));
             //_githubUtils.CleanUp(parent);
         }
     }

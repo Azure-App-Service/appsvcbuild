@@ -42,6 +42,46 @@ namespace appsvcbuild
             _gitToken = gitToken;
         }
 
+        public async void InitGithubAsync(String name)
+        {
+            HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
+            String url = String.Format("https://api.github.com/user/repos?access_token={0}", _gitToken);
+            String body = "{ \"name\": " + JsonConvert.SerializeObject(name) + " }";
+            StringContent content = new StringContent(body);
+
+            HttpResponseMessage response = await client.PostAsync(url, new StringContent(body));
+            String result = await response.Content.ReadAsStringAsync();
+
+            if (response.StatusCode == HttpStatusCode.Created)
+            {
+                _log.LogInformation(String.Format("created repo {0}", name));
+            }
+            else
+            {
+                //TODO add retyry logic
+                //throw new Exception(String.Format("unable to create github repo {0}", name));
+                _log.LogInformation(String.Format("unable to create github repo {0}", name));
+            }
+        }
+
+        public void Init(String dir)
+        {
+            Repository.Init(dir);
+        }
+
+        public void AddRemote(String dir, String repoName)
+        {
+            Repository repo = new Repository(dir);
+            Remote remote = repo.Network.Remotes.Add("origin", String.Format("https://github.com/patricklee2/{0}.git", repoName));
+            repo.Branches.Update(repo.Head, b => b.Remote = remote.Name, b => b.UpstreamBranch = repo.Head.CanonicalName);
+        }
+
+        public void DeepCopy(String source, String target)
+        {
+            DeepCopy(new DirectoryInfo(source), new DirectoryInfo(target));
+        }
+
         public void DeepCopy(DirectoryInfo source, DirectoryInfo target)
         {
             target.Create();
@@ -132,36 +172,45 @@ namespace appsvcbuild
             Commands.Stage(new Repository(localRepo), path);
         }
 
-        public void CommitAndPush(String githubURL, String gitPath, String message)
+        public void CommitAndPush(String gitPath, String message)
         {
-            using (Repository repo = new Repository(gitPath))
+            try
             {
-                // git commit
-                // Create the committer's signature and commit
-                //_log.Info("git commit");
-                Signature author = new Signature("appsvcbuild", "patle@microsoft.com", DateTime.Now);
-                Signature committer = author;
+                using (Repository repo = new Repository(gitPath))
+                {
+                    // git commit
+                    // Create the committer's signature and commit
+                    //_log.Info("git commit");
+                    Signature author = new Signature("appsvcbuild", "patle@microsoft.com", DateTime.Now);
+                    Signature committer = author;
 
-                // Commit to the repository
-                try
-                {
-                    Commit commit = repo.Commit(message, author, committer);
-                } catch (Exception e)
-                {
-                    //_log.info("Empty commit");
+                    // Commit to the repository
+                    try
+                    {
+                        Commit commit = repo.Commit(message, author, committer);
+                    }
+                    catch (Exception e)
+                    {
+                        //_log.info("Empty commit");
+                    }
+
+                    // git push
+                    //_log.Info("git push");
+                    LibGit2Sharp.PushOptions options = new LibGit2Sharp.PushOptions();
+                    options.CredentialsProvider = new CredentialsHandler(
+                        (url, usernameFromUrl, types) =>
+                            new UsernamePasswordCredentials()
+                            {
+                                Username = _gitToken,
+                                Password = String.Empty
+                            });
+                    repo.Network.Push(repo.Branches["master"], options);
                 }
-
-                // git push
-                //_log.Info("git push");
-                LibGit2Sharp.PushOptions options = new LibGit2Sharp.PushOptions();
-                options.CredentialsProvider = new CredentialsHandler(
-                    (url, usernameFromUrl, types) =>
-                        new UsernamePasswordCredentials()
-                        {
-                            Username = _gitToken,
-                            Password = String.Empty
-                        });
-                repo.Network.Push(repo.Branches["master"], options);
+            }
+            catch (Exception e)
+            {
+                //TODO better retry logic
+                _log.LogInformation(e.ToString());
             }
         }
     }

@@ -35,32 +35,34 @@ using Microsoft.ApplicationInsights;
 
 namespace appsvcbuild
 {
-    public static class TimerPhp
+    public static class TimerPython
     {
-        [FunctionName("TimerPhp")]
+        [FunctionName("TimerPython")]
         public static async System.Threading.Tasks.Task RunAsync([TimerTrigger("0 8 * * *")]TimerInfo myTimer, ILogger log)
         {
             TelemetryClient telemetry = new TelemetryClient();
-            telemetry.TrackEvent("TimerPhp started");
+            telemetry.TrackEvent("TimerPython started");
 
-            try {
+            try
+            {
                 SecretsUtils secretsUtils = new SecretsUtils();
                 await secretsUtils.GetSecrets();
                 DockerhubUtils dockerhubUtils = new DockerhubUtils();
 
-                List<String> newTags = await dockerhubUtils.PollDockerhub("https://registry.hub.docker.com/v2/repositories/library/php/tags",
-                    new Regex("^[0-9]+\\.[0-9]+\\.[0-9]+-apache$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+                List<String> newTags = await dockerhubUtils.PollDockerhubRepos("https://registry.hub.docker.com/v2/repositories/oryxprod",
+                    new Regex("^python-[0-9]+\\.[0-9]+$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+                    new Regex("^(?!.*latest).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
                     DateTime.Now.AddDays(-1));
 
-                log.LogInformation(String.Format("Php: {0} tags found {1}", newTags.Count, String.Join(", ", newTags)));
-                telemetry.TrackEvent(String.Format("Php: {0} tags found {1}", newTags.Count, String.Join(", ", newTags)));
+                log.LogInformation(String.Format("Python: {0} tags found {1}", newTags.Count, String.Join(", ", newTags)));
+                telemetry.TrackEvent(String.Format("Python: {0} tags found {1}", newTags.Count, String.Join(", ", newTags)));
                 foreach (String t in newTags)
                 {
                     try
                     {
                         List<String> tag = new List<String> { t };
                         HttpClient client = new HttpClient();
-                        String url = String.Format("https://appsvcbuildfunc.azurewebsites.net/api/HttpPhpPipeline?code={0}", secretsUtils._appsvcbuildfuncMaster);
+                        String url = String.Format("https://appsvcbuildfunc.azurewebsites.net/api/HttpPythonPipeline?code={0}", secretsUtils._appsvcbuildfuncMaster);
                         String body = "{\"newTags\": " + JsonConvert.SerializeObject(tag) + "}";
                         client.Timeout = new TimeSpan(3, 0, 0);
 

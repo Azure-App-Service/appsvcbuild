@@ -25,28 +25,25 @@ namespace appsvcbuild
                 //_log.Info("polling dockerhub");
                 //_log.Info("cutoff " + cutOff.ToString());
 
-                List<String> newTags = new List<String>();
+                List<String> newResults = new List<String>();
 
                 String nextUrl = dockerHubURL;
-                List<Tag> tags = null;
+                List<Result> results = null;
                 while (nextUrl != null)
                 {
                     //_log.Info("next page " + nextUrl);
-                    (nextUrl, tags) = await GetPage(nextUrl, cutOff);
-                    foreach (Tag t in tags)
+                    (nextUrl, results) = await GetPage(nextUrl, cutOff);
+                    foreach (Result r in results)
                     {
-                        if (regex.IsMatch(t.Name))
+                        DateTime lastUpdated = Convert.ToDateTime(r.LastUpdated);
+                        if (regex.IsMatch(r.Name) && lastUpdated >= cutOff)
                         {
-                            DateTime lastUpdated = Convert.ToDateTime(t.LastUpdated);
-                            if (lastUpdated >= cutOff)
-                            {
-                                //_log.Info(t.Name);
-                                newTags.Add(t.Name);
-                            }
+                            //_log.Info(t.Name);
+                            newResults.Add(r.Name);
                         }
                     }
                 }
-                return newTags;
+                return newResults;
             }
             catch (Exception ex)
             {
@@ -55,7 +52,25 @@ namespace appsvcbuild
             }
         }
 
-        public async Task<Tuple<String, List<Tag>>> GetPage(String url, DateTime cutoff)
+        public async Task<List<String>> PollDockerhubRepos(String dockerHubURL, Regex repoRegex, Regex tagRegex, DateTime cutOff)
+        {
+            List<String> newTags = new List<String>();
+            List<String> repos = await PollDockerhub(dockerHubURL, repoRegex, cutOff);
+            foreach(String repo in repos)
+            {
+                List<String> tags = await PollDockerhub(
+                    String.Format("https://registry.hub.docker.com/v2/repositories/oryxprod/{0}/tags", repo),
+                    tagRegex,
+                    cutOff);
+                foreach (String t in tags)
+                {
+                    newTags.Add(String.Format("{0}:{1}", repo, t));
+                }
+            }
+            return newTags;
+        }
+
+        public async Task<Tuple<String, List<Result>>> GetPage(String url, DateTime cutoff)
         {
             HttpClient httpClient = new HttpClient();
             try
@@ -63,13 +78,13 @@ namespace appsvcbuild
                 HttpResponseMessage response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
                 string contentString = await response.Content.ReadAsStringAsync();
-                TagList tagList = JsonConvert.DeserializeObject<TagList>(contentString);
-                return Tuple.Create<String, List<Tag>>(tagList.Next, tagList.Results);
+                ResultList resultList = JsonConvert.DeserializeObject<ResultList>(contentString);
+                return Tuple.Create<String, List<Result>>(resultList.Next, resultList.Results);
             }
             catch (Exception ex)
             {
                 //_log.Info($"Exception found {ex.Message}");
-                return Tuple.Create<String, List<Tag>>(null, null);
+                return Tuple.Create<String, List<Result>>(null, null);
             }
             finally
             {

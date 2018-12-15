@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace appsvcbuild
 {
-    public class Tag
+    public class Result
     {
         [JsonProperty("name")]
         public string Name;

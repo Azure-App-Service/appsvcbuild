@@ -197,10 +197,10 @@ namespace appsvcbuild
         {
             _log.LogInformation("creating pipeling for php app " + version);
 
-            String githubPath = String.Format("https://github.com/patricklee2/php-{0}-app-apache", version);
+            String githubPath = String.Format("https://github.com/patricklee2/php-app-{0}-apache", version);
             String phpVersionDash = version.Replace(".", "-");
-            String taskName = String.Format("appsvcbuild-php-{0}-app-task", phpVersionDash);
-            String appName = String.Format("appsvcbuild-php-{0}-app-site", phpVersionDash);
+            String taskName = String.Format("appsvcbuild-php-app-{0}-task", phpVersionDash);
+            String appName = String.Format("appsvcbuild-php-app-{0}-site", phpVersionDash);
             String webhookName = String.Format("appsvcbuildphpapp{0}wh", version.Replace(".", ""));
             String imageName = String.Format("phpapp:{0}-apache", version);
             String planName = "appsvcbuild-php-app-plan";
@@ -238,7 +238,7 @@ namespace appsvcbuild
             _githubUtils.CreateDir(parent);
             String templateRepo = String.Format("{0}\\php-ci", parent);
             String phpRepo = String.Format("{0}\\php-{1}-apache", parent, version);
-            String phpAppRepo = String.Format("{0}\\php-{1}-app-apache", parent, version);
+            String phpAppRepo = String.Format("{0}\\php-app-{1}-apache", parent, version);
 
             _githubUtils.Clone(_githubURL, templateRepo);
             _githubUtils.FillTemplate(
@@ -251,21 +251,21 @@ namespace appsvcbuild
             _githubUtils.FillTemplate(
                 templateRepo,
                 String.Format("{0}\\template-app-apache", templateRepo),
-                String.Format("{0}\\php-{1}-app-apache", templateRepo, version),
-                String.Format("{0}\\php-{1}-app-apache\\DockerFile", templateRepo, version),
+                String.Format("{0}\\php-app-{1}-apache", templateRepo, version),
+                String.Format("{0}\\php-app-{1}-apache\\DockerFile", templateRepo, version),
                 String.Format("FROM appsvcbuildacr.azurecr.io/php:{0}-apache\n", version),
                 false);
 
             _githubUtils.CreateDir(phpRepo);
             _githubUtils.CreateDir(phpAppRepo);
             _githubUtils.DeepCopy(String.Format("{0}\\php-{1}-apache", templateRepo, version), phpRepo);
-            _githubUtils.DeepCopy(String.Format("{0}\\php-{1}-app-apache", templateRepo, version), phpAppRepo);
+            _githubUtils.DeepCopy(String.Format("{0}\\php-app-{1}-apache", templateRepo, version), phpAppRepo);
             _githubUtils.InitGithubAsync(String.Format("php-{0}-apache", version));
-            _githubUtils.InitGithubAsync(String.Format("php-{0}-app-apache", version));
+            _githubUtils.InitGithubAsync(String.Format("php-app-{0}-apache", version));
             _githubUtils.Init(phpRepo);
             _githubUtils.Init(phpAppRepo);
             _githubUtils.AddRemote(phpRepo, String.Format("php-{0}-apache", version));
-            _githubUtils.AddRemote(phpAppRepo, String.Format("php-{0}-app-apache", version));
+            _githubUtils.AddRemote(phpAppRepo, String.Format("php-app-{0}-apache", version));
             _githubUtils.Stage(phpRepo, "*");
             _githubUtils.Stage(phpAppRepo, "*");
             _githubUtils.CommitAndPush(phpRepo, String.Format("[appsvcbuild] Add php {0}", version));

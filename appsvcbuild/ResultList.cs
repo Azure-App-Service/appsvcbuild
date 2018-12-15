@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace appsvcbuild
 {
-    public class TagList
+    public class ResultList
     {
         [JsonProperty("count")]
         public int Count { get; set; }
@@ -15,6 +15,6 @@ namespace appsvcbuild
         public string Previous { get; set; }
 
         [JsonProperty("results")]
-        public List<Tag> Results { get; set; }
+        public List<Result> Results { get; set; }
     }
 }

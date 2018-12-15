@@ -49,29 +49,42 @@ namespace appsvcbuild
                 await secretsUtils.GetSecrets();
                 DockerhubUtils dockerhubUtils = new DockerhubUtils();
 
-                List<String> newTags = await dockerhubUtils.PollDockerhub("https://registry.hub.docker.com/v2/repositories/library/node/tags",
-                    new Regex("^[0-9]+\\.[0-9]+\\.[0-9]+-alpine$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+                List<String> newTags = await dockerhubUtils.PollDockerhubRepos("https://registry.hub.docker.com/v2/repositories/oryxprod",
+                    new Regex("^node-[0-9]+\\.[0-9]+$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+                    new Regex("^(?!.*latest).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
                     DateTime.Now.AddDays(-1));
 
                 log.LogInformation(String.Format("Node: {0} tags found {1}", newTags.Count, String.Join(", ", newTags)));
                 telemetry.TrackEvent(String.Format("Node: {0} tags found {1}", newTags.Count, String.Join(", ", newTags)));
-
-                HttpClient client = new HttpClient();
-                String url = String.Format("https://appsvcbuildfunc.azurewebsites.net/api/HttpNodePipeline?code={0}", secretsUtils._appsvcbuildfuncMaster);
-                String body = "{\"newTags\": " + JsonConvert.SerializeObject(newTags) + "}";
-                client.Timeout = new TimeSpan(3, 0, 0);
-
-                HttpResponseMessage response = await client.PostAsync(url, new StringContent(body));
-                String result = await response.Content.ReadAsStringAsync();
-
-                if (response.StatusCode == HttpStatusCode.OK) {
-                    log.LogInformation(result);
-                    telemetry.TrackEvent(result);
-                }
-                else
+                foreach (String t in newTags)
                 {
-                    log.LogInformation(response.ToString());
-                    telemetry.TrackEvent(response.ToString());
+                    try
+                    {
+                        List<String> tag = new List<String> { t };
+                        HttpClient client = new HttpClient();
+                        String url = String.Format("https://appsvcbuildfunc.azurewebsites.net/api/HttpNodePipeline?code={0}", secretsUtils._appsvcbuildfuncMaster);
+                        String body = "{\"newTags\": " + JsonConvert.SerializeObject(tag) + "}";
+                        client.Timeout = new TimeSpan(3, 0, 0);
+
+                        HttpResponseMessage response = await client.PostAsync(url, new StringContent(body));
+                        String result = await response.Content.ReadAsStringAsync();
+
+                        if (response.StatusCode == HttpStatusCode.OK)
+                        {
+                            log.LogInformation(result);
+                            telemetry.TrackEvent(result);
+                        }
+                        else
+                        {
+                            log.LogInformation(response.ToString());
+                            telemetry.TrackEvent(response.ToString());
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        log.LogInformation(ex.ToString());
+                        telemetry.TrackException(ex);
+                    }
                 }
             }
             catch (Exception ex)

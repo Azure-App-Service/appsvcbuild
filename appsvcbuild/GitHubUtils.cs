@@ -42,13 +42,28 @@ namespace appsvcbuild
             _gitToken = gitToken;
         }
 
+        public async Task<bool> RepoExistsAsync(String repoName)
+        {
+            HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
+            String url = String.Format("https://api.github.com/repos/patricklee2/{0}", repoName);
+            
+            HttpResponseMessage response = await client.GetAsync(url);
+            
+            if(response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         public async void InitGithubAsync(String name)
         {
             HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
             String url = String.Format("https://api.github.com/user/repos?access_token={0}", _gitToken);
             String body = "{ \"name\": " + JsonConvert.SerializeObject(name) + " }";
-            StringContent content = new StringContent(body);
 
             HttpResponseMessage response = await client.PostAsync(url, new StringContent(body));
             String result = await response.Content.ReadAsStringAsync();
@@ -91,7 +106,7 @@ namespace appsvcbuild
 
             // Go ahead and copy each file in "source" to the "target" directory
             foreach (FileInfo file in source.GetFiles())
-                file.CopyTo(Path.Combine(target.FullName, file.Name));
+                file.CopyTo(Path.Combine(target.FullName, file.Name), true);
         }
 
         public void LineChanger(string newText, string fileName, int lineToEdit)
@@ -110,9 +125,8 @@ namespace appsvcbuild
             }
         }
 
-        public void CleanUp(String path)
+        public void Delete(String path)
         {
-            System.Threading.Thread.Sleep(2000);  //milliseconds
             //_log.Info("delete folder " + path);
             if (Directory.Exists(path))
             {
@@ -146,7 +160,7 @@ namespace appsvcbuild
         {
             if (force)
             {
-                CleanUp(dest);
+                Delete(dest);
             }
 
             if (Directory.Exists(dest))

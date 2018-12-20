@@ -145,8 +145,10 @@ namespace appsvcbuild
                     {
                         tries--;
                         _mailUtils._version = version;
-                        PushGithub(t, version);
+                        PushGithubAsync(t, version);
+                        PushGithubAppAsync(t, version);
                         CreatePythonPipeline(version);
+
                         LogInfo(String.Format("python {0} built", version));
                         break;
                     }
@@ -226,47 +228,87 @@ namespace appsvcbuild
             throw new Exception(String.Format("unexpected python version: {0}", version));
         }
 
-        private static void PushGithub(String tag, String version)
+        private static async void PushGithubAsync(String tag, String version)
         {
+            String repoName = String.Format("python-{0}", version);
+
             _log.LogInformation("creating github files for python " + version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
+
             String templateRepo = String.Format("{0}\\python-ci", parent);
-            String pythonRepo = String.Format("{0}\\python-{1}", parent, version);
-            String pythonAppRepo = String.Format("{0}\\python-app-{1}", parent, version);
+            String pythonRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);
             _githubUtils.FillTemplate(
                 templateRepo,
                 String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
-                String.Format("{0}\\python-{1}", templateRepo, version),
-                String.Format("{0}\\python-{1}\\DockerFile", templateRepo, version),
+                String.Format("{0}\\{1}", templateRepo, repoName),
+                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
                 String.Format("FROM  oryxprod/{0}\n", tag),
                 false);
+
+            _githubUtils.CreateDir(pythonRepo);
+            if (await _githubUtils.RepoExistsAsync(repoName))
+            {
+                _githubUtils.Clone(
+                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    pythonRepo);
+            }
+            else
+            {
+                _githubUtils.InitGithubAsync(repoName);
+                _githubUtils.Init(pythonRepo);
+                _githubUtils.AddRemote(pythonRepo, repoName);
+            }
+
+            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), pythonRepo);
+            _githubUtils.Stage(pythonRepo, "*");
+            _githubUtils.CommitAndPush(pythonRepo, String.Format("[appsvcbuild] Add python {0}", version));
+            //_githubUtils.CleanUp(parent);
+        }
+
+        private static async void PushGithubAppAsync(String tag, String version)
+        {
+            String repoName = String.Format("python-app-{0}", version);
+
+            _log.LogInformation("creating github files for python " + version);
+            Random random = new Random();
+            String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
+            _githubUtils.CreateDir(parent);
+
+            String templateRepo = String.Format("{0}\\python-ci", parent);
+            String pythonRepo = String.Format("{0}\\{1}", parent, repoName);
+
+            _githubUtils.Clone(_githubURL, templateRepo);
             _githubUtils.FillTemplate(
                 templateRepo,
                 String.Format("{0}\\template-app", templateRepo),
-                String.Format("{0}\\python-app-{1}", templateRepo, version),
-                String.Format("{0}\\python-app-{1}\\DockerFile", templateRepo, version),
+                String.Format("{0}\\{1}", templateRepo, repoName),
+                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
                 String.Format("FROM appsvcbuildacr.azurecr.io/python:{0}\n", version),
                 false);
 
             _githubUtils.CreateDir(pythonRepo);
-            _githubUtils.CreateDir(pythonAppRepo);
-            _githubUtils.DeepCopy(String.Format("{0}\\python-{1}", templateRepo, version), pythonRepo);
-            _githubUtils.DeepCopy(String.Format("{0}\\python-app-{1}", templateRepo, version), pythonAppRepo);
-            _githubUtils.InitGithubAsync(String.Format("python-{0}", version));
-            _githubUtils.InitGithubAsync(String.Format("python-app-{0}", version));
-            _githubUtils.Init(pythonRepo);
-            _githubUtils.Init(pythonAppRepo);
-            _githubUtils.AddRemote(pythonRepo, String.Format("python-{0}", version));
-            _githubUtils.AddRemote(pythonAppRepo, String.Format("python-app-{0}", version));
+            if (await _githubUtils.RepoExistsAsync(repoName))
+            {
+                _githubUtils.Clone(
+                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    pythonRepo);
+            }
+            else
+            {
+                _githubUtils.InitGithubAsync(repoName);
+                _githubUtils.Init(pythonRepo);
+                _githubUtils.AddRemote(pythonRepo, repoName);
+            }
+
+            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), pythonRepo);
             _githubUtils.Stage(pythonRepo, "*");
-            _githubUtils.Stage(pythonAppRepo, "*");
             _githubUtils.CommitAndPush(pythonRepo, String.Format("[appsvcbuild] Add python {0}", version));
-            _githubUtils.CommitAndPush(pythonAppRepo, String.Format("[appsvcbuild] Add python {0}", version));
             //_githubUtils.CleanUp(parent);
         }
     }

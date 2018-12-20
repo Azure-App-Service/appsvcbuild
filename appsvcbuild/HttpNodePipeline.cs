@@ -145,7 +145,8 @@ namespace appsvcbuild
                     {
                         tries--;
                         _mailUtils._version = version;
-                        PushGithub(t, version);
+                        PushGithubAsync(t, version);
+                        PushGithubAppAsync(t, version);
                         CreateNodePipeline(version);
                         LogInfo(String.Format("node {0} built", version));
                         break;
@@ -207,47 +208,87 @@ namespace appsvcbuild
             _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
-        private static void PushGithub(String tag, String version)
+        private static async void PushGithubAsync(String tag, String version)
         {
-            LogInfo("creating github files for node " + version);
+            String repoName = String.Format("node-{0}", version);
+
+            _log.LogInformation("creating github files for node " + version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
+
             String templateRepo = String.Format("{0}\\node-ci", parent);
-            String nodeRepo = String.Format("{0}\\node-{1}", parent, version);
-            String nodeAppRepo = String.Format("{0}\\nodeApp-{1}", parent, version);
+            String nodeRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);
             _githubUtils.FillTemplate(
                 templateRepo,
                 String.Format("{0}\\template", templateRepo),
-                String.Format("{0}\\{1}", templateRepo, version),
-                String.Format("{0}\\{1}\\DockerFile", templateRepo, version),
+                String.Format("{0}\\{1}", templateRepo, repoName),
+                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
                 String.Format("FROM  oryxprod/{0}\n", tag),
                 false);
+
+            _githubUtils.CreateDir(nodeRepo);
+            if (await _githubUtils.RepoExistsAsync(repoName))
+            {
+                _githubUtils.Clone(
+                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    nodeRepo);
+            }
+            else
+            {
+                _githubUtils.InitGithubAsync(repoName);
+                _githubUtils.Init(nodeRepo);
+                _githubUtils.AddRemote(nodeRepo, repoName);
+            }
+
+            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), nodeRepo);
+            _githubUtils.Stage(nodeRepo, "*");
+            _githubUtils.CommitAndPush(nodeRepo, String.Format("[appsvcbuild] Add node {0}", version));
+            //_githubUtils.CleanUp(parent);
+        }
+
+        private static async void PushGithubAppAsync(String tag, String version)
+        {
+            String repoName = String.Format("nodeApp-{0}", version);
+
+            _log.LogInformation("creating github files for node " + version);
+            Random random = new Random();
+            String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
+            _githubUtils.CreateDir(parent);
+
+            String templateRepo = String.Format("{0}\\node-ci", parent);
+            String nodeRepo = String.Format("{0}\\{1}", parent, repoName);
+
+            _githubUtils.Clone(_githubURL, templateRepo);
             _githubUtils.FillTemplate(
                 templateRepo,
                 String.Format("{0}\\nodeAppTemplate", templateRepo),
-                String.Format("{0}\\nodeApp-{1}", templateRepo, version),
-                String.Format("{0}\\nodeApp-{1}\\DockerFile", templateRepo, version),
+                String.Format("{0}\\{1}", templateRepo, repoName),
+                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
                 String.Format("FROM appsvcbuildacr.azurecr.io/node:{0}\n", version),
                 false);
 
             _githubUtils.CreateDir(nodeRepo);
-            _githubUtils.CreateDir(nodeAppRepo);
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}",templateRepo, version), nodeRepo);
-            _githubUtils.DeepCopy(String.Format("{0}\\nodeApp-{1}", templateRepo, version), nodeAppRepo);
-            _githubUtils.InitGithubAsync(String.Format("node-{0}", version));
-            _githubUtils.InitGithubAsync(String.Format("nodeApp-{0}", version));
-            _githubUtils.Init(nodeRepo);
-            _githubUtils.Init(nodeAppRepo);
-            _githubUtils.AddRemote(nodeRepo, String.Format("node-{0}", version));
-            _githubUtils.AddRemote(nodeAppRepo, String.Format("nodeApp-{0}", version));
+            if (await _githubUtils.RepoExistsAsync(repoName))
+            {
+                _githubUtils.Clone(
+                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    nodeRepo);
+            }
+            else
+            {
+                _githubUtils.InitGithubAsync(repoName);
+                _githubUtils.Init(nodeRepo);
+                _githubUtils.AddRemote(nodeRepo, repoName);
+            }
+
+            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), nodeRepo);
             _githubUtils.Stage(nodeRepo, "*");
-            _githubUtils.Stage(nodeAppRepo, "*");
             _githubUtils.CommitAndPush(nodeRepo, String.Format("[appsvcbuild] Add node {0}", version));
-            _githubUtils.CommitAndPush(nodeAppRepo, String.Format("[appsvcbuild] Add node {0}", version));
             //_githubUtils.CleanUp(parent);
         }
     }

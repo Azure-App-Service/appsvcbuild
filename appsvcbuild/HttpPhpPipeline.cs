@@ -148,7 +148,8 @@ namespace appsvcbuild
                     {
                         tries--;
                         _mailUtils._version = version;
-                        PushGithub(version);
+                        PushGithubAsync(version);
+                        PushGithubAppAsync(version);
                         CreatePhpPipeline(version);
                         LogInfo(String.Format("php {0} built", version));
                         break;
@@ -229,47 +230,87 @@ namespace appsvcbuild
             throw new Exception(String.Format("unexpected php version: {0}", version));
         }
 
-        private static void PushGithub(String version)
+        private static async void PushGithubAsync(String version)
         {
+            String repoName = String.Format("php-{0}-apache", version);
+
             _log.LogInformation("creating github files for php " + version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
+
             String templateRepo = String.Format("{0}\\php-ci", parent);
-            String phpRepo = String.Format("{0}\\php-{1}-apache", parent, version);
-            String phpAppRepo = String.Format("{0}\\php-app-{1}-apache", parent, version);
+            String phpRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);
             _githubUtils.FillTemplate(
                 templateRepo,
                 String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
-                String.Format("{0}\\php-{1}-apache", templateRepo, version),
-                String.Format("{0}\\php-{1}-apache\\DockerFile", templateRepo, version),
+                String.Format("{0}\\{1}", templateRepo, repoName),
+                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
                 String.Format("FROM php:{0}-apache\n", version),
-                false);
-            _githubUtils.FillTemplate(
-                templateRepo,
-                String.Format("{0}\\template-app-apache", templateRepo),
-                String.Format("{0}\\php-app-{1}-apache", templateRepo, version),
-                String.Format("{0}\\php-app-{1}-apache\\DockerFile", templateRepo, version),
-                String.Format("FROM appsvcbuildacr.azurecr.io/php:{0}-apache\n", version),
                 false);
 
             _githubUtils.CreateDir(phpRepo);
-            _githubUtils.CreateDir(phpAppRepo);
-            _githubUtils.DeepCopy(String.Format("{0}\\php-{1}-apache", templateRepo, version), phpRepo);
-            _githubUtils.DeepCopy(String.Format("{0}\\php-app-{1}-apache", templateRepo, version), phpAppRepo);
-            _githubUtils.InitGithubAsync(String.Format("php-{0}-apache", version));
-            _githubUtils.InitGithubAsync(String.Format("php-app-{0}-apache", version));
-            _githubUtils.Init(phpRepo);
-            _githubUtils.Init(phpAppRepo);
-            _githubUtils.AddRemote(phpRepo, String.Format("php-{0}-apache", version));
-            _githubUtils.AddRemote(phpAppRepo, String.Format("php-app-{0}-apache", version));
+            if (await _githubUtils.RepoExistsAsync(repoName))
+            {
+                _githubUtils.Clone(
+                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    phpRepo);
+            }
+            else
+            {
+                _githubUtils.InitGithubAsync(repoName);
+                _githubUtils.Init(phpRepo);
+                _githubUtils.AddRemote(phpRepo, repoName);
+            }
+
+            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), phpRepo);
             _githubUtils.Stage(phpRepo, "*");
-            _githubUtils.Stage(phpAppRepo, "*");
             _githubUtils.CommitAndPush(phpRepo, String.Format("[appsvcbuild] Add php {0}", version));
-            _githubUtils.CommitAndPush(phpAppRepo, String.Format("[appsvcbuild] Add php {0}", version));
+            //_githubUtils.CleanUp(parent);
+        }
+
+        private static async void PushGithubAppAsync(String version)
+        {
+            String repoName = String.Format("php-app-{0}-apache", version);
+
+            _log.LogInformation("creating github files for php " + version);
+            Random random = new Random();
+            String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
+            _githubUtils.CreateDir(parent);
+
+            String templateRepo = String.Format("{0}\\php-ci", parent);
+            String phpRepo = String.Format("{0}\\{1}", parent, repoName);
+
+            _githubUtils.Clone(_githubURL, templateRepo);
+            _githubUtils.FillTemplate(
+               templateRepo,
+               String.Format("{0}\\template-app-apache", templateRepo),
+               String.Format("{0}\\{1}", templateRepo, repoName),
+               String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
+               String.Format("FROM appsvcbuildacr.azurecr.io/php:{0}-apache\n", version),
+               false);
+
+            _githubUtils.CreateDir(phpRepo);
+            if (await _githubUtils.RepoExistsAsync(repoName))
+            {
+                _githubUtils.Clone(
+                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    phpRepo);
+            }
+            else
+            {
+                _githubUtils.InitGithubAsync(repoName);
+                _githubUtils.Init(phpRepo);
+                _githubUtils.AddRemote(phpRepo, repoName);
+            }
+
+            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), phpRepo);
+            _githubUtils.Stage(phpRepo, "*");
+            _githubUtils.CommitAndPush(phpRepo, String.Format("[appsvcbuild] Add php {0}", version));
             //_githubUtils.CleanUp(parent);
         }
     }

@@ -227,6 +227,10 @@ namespace appsvcbuild
             {
                 return "template-7.2-apache";
             }
+            else if (version.StartsWith("7.3"))
+            {
+                return "template-7.3-apache";
+            }
             throw new Exception(String.Format("unexpected php version: {0}", version));
         }
 
@@ -249,7 +253,8 @@ namespace appsvcbuild
                 String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                String.Format("FROM php:{0}-apache\n", version),
+                new List<String>{ String.Format("FROM php:{0}-apache", version), String.Format("ENV PHP_VERSION {0}", version) },
+                new List<int> { 1, 4 },
                 false);
 
             _githubUtils.CreateDir(phpRepo);
@@ -261,7 +266,7 @@ namespace appsvcbuild
             }
             else
             {
-                _githubUtils.InitGithubAsync(repoName);
+                await _githubUtils.InitGithubAsync(repoName);
                 _githubUtils.Init(phpRepo);
                 _githubUtils.AddRemote(phpRepo, repoName);
             }
@@ -291,7 +296,8 @@ namespace appsvcbuild
                String.Format("{0}\\template-app-apache", templateRepo),
                String.Format("{0}\\{1}", templateRepo, repoName),
                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-               String.Format("FROM appsvcbuildacr.azurecr.io/php:{0}-apache\n", version),
+               new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/php:{0}-apache", version) },
+               new List<int> { 1 },
                false);
 
             _githubUtils.CreateDir(phpRepo);
@@ -303,7 +309,7 @@ namespace appsvcbuild
             }
             else
             {
-                _githubUtils.InitGithubAsync(repoName);
+                await _githubUtils.InitGithubAsync(repoName);
                 _githubUtils.Init(phpRepo);
                 _githubUtils.AddRemote(phpRepo, repoName);
             }

@@ -247,7 +247,8 @@ namespace appsvcbuild
                 String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                String.Format("FROM  oryxprod/{0}\n", tag),
+                new List<String> { String.Format("FROM oryxprod/{0}\n", tag) },
+                new List<int> { 1 },
                 false);
 
             _githubUtils.CreateDir(pythonRepo);
@@ -259,7 +260,7 @@ namespace appsvcbuild
             }
             else
             {
-                _githubUtils.InitGithubAsync(repoName);
+                await _githubUtils.InitGithubAsync(repoName);
                 _githubUtils.Init(pythonRepo);
                 _githubUtils.AddRemote(pythonRepo, repoName);
             }
@@ -289,7 +290,8 @@ namespace appsvcbuild
                 String.Format("{0}\\template-app", templateRepo),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                String.Format("FROM appsvcbuildacr.azurecr.io/python:{0}\n", version),
+                new List<String>{ String.Format("FROM appsvcbuildacr.azurecr.io/python:{0}\n", version) },
+                new List<int> { 1 },
                 false);
 
             _githubUtils.CreateDir(pythonRepo);
@@ -301,7 +303,7 @@ namespace appsvcbuild
             }
             else
             {
-                _githubUtils.InitGithubAsync(repoName);
+                await _githubUtils.InitGithubAsync(repoName);
                 _githubUtils.Init(pythonRepo);
                 _githubUtils.AddRemote(pythonRepo, repoName);
             }

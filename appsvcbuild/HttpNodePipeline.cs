@@ -208,6 +208,41 @@ namespace appsvcbuild
             _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
+        private static String getTemplate(String version)
+        {
+            String[] versionNumbers = version.Split('.');
+            // node 4
+            if (Int32.Parse(versionNumbers[0]) == 4)
+            {
+                return "4-debian";
+            }
+            // node 6.2
+            else if ((Int32.Parse(versionNumbers[0]) == 6) && (Int32.Parse(versionNumbers[1]) == 2))
+            {
+                return "6.2-debian";
+            }
+            // 6.3 - 6.X
+            else if ((Int32.Parse(versionNumbers[0]) == 6) && (Int32.Parse(versionNumbers[1]) > 2))
+            {
+                return "6-debian";
+            }
+            //8.0 and 8.1
+            else if ((Int32.Parse(versionNumbers[0]) == 8) && (Int32.Parse(versionNumbers[1]) == 0 || Int32.Parse(versionNumbers[1]) == 1))
+            {
+                return "8.0-debian";
+            }
+            //8.2 - 8.10
+            else if (Int32.Parse(versionNumbers[0]) < 8 ||
+              ((Int32.Parse(versionNumbers[0]) == 8) && (Int32.Parse(versionNumbers[1]) < 11)))
+            {
+                return "debian";
+            }
+            else //8.11+
+            {
+                return "alpine";
+            }
+        }
+
         private static async void PushGithubAsync(String tag, String version)
         {
             String repoName = String.Format("node-{0}", version);
@@ -224,10 +259,11 @@ namespace appsvcbuild
             _githubUtils.Clone(_githubURL, templateRepo);
             _githubUtils.FillTemplate(
                 templateRepo,
-                String.Format("{0}\\template", templateRepo),
+                String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                String.Format("FROM  oryxprod/{0}\n", tag),
+                new List<String> { String.Format("FROM oryxprod/{0}\n", tag) },
+                new List<int> { 1 },
                 false);
 
             _githubUtils.CreateDir(nodeRepo);
@@ -239,11 +275,11 @@ namespace appsvcbuild
             }
             else
             {
-                _githubUtils.InitGithubAsync(repoName);
+                await _githubUtils.InitGithubAsync(repoName);
                 _githubUtils.Init(nodeRepo);
                 _githubUtils.AddRemote(nodeRepo, repoName);
             }
-
+            
             _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), nodeRepo);
             _githubUtils.Stage(nodeRepo, "*");
             _githubUtils.CommitAndPush(nodeRepo, String.Format("[appsvcbuild] Add node {0}", version));
@@ -269,7 +305,8 @@ namespace appsvcbuild
                 String.Format("{0}\\nodeAppTemplate", templateRepo),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                String.Format("FROM appsvcbuildacr.azurecr.io/node:{0}\n", version),
+                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/node:{0}\n", version) },
+                new List<int> { 1 },
                 false);
 
             _githubUtils.CreateDir(nodeRepo);
@@ -281,7 +318,7 @@ namespace appsvcbuild
             }
             else
             {
-                _githubUtils.InitGithubAsync(repoName);
+                await _githubUtils.InitGithubAsync(repoName);
                 _githubUtils.Init(nodeRepo);
                 _githubUtils.AddRemote(nodeRepo, repoName);
             }

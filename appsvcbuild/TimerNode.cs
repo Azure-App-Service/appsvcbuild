@@ -85,6 +85,7 @@ namespace appsvcbuild
                         log.LogInformation(ex.ToString());
                         telemetry.TrackException(ex);
                     }
+                    Thread.Sleep(5 * 60 * 1000);
                 }
             }
             catch (Exception ex)

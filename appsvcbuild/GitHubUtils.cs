@@ -58,7 +58,7 @@ namespace appsvcbuild
             return true;
         }
 
-        public async void InitGithubAsync(String name)
+        public async Task<Boolean> InitGithubAsync(String name)
         {
             HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
@@ -78,6 +78,7 @@ namespace appsvcbuild
                 //throw new Exception(String.Format("unable to create github repo {0}", name));
                 _log.LogInformation(String.Format("unable to create github repo {0}", name));
             }
+            return true;    //return when done
         }
 
         public void Init(String dir)
@@ -156,7 +157,7 @@ namespace appsvcbuild
             Repository.Clone(githubURL, dest, new CloneOptions { BranchName = "master" });
         }
 
-        public void FillTemplate(String localRepo, String template, String dest, String dockerFile, String newLine, bool force)
+        public void FillTemplate(String localRepo, String template, String dest, String dockerFile, List<String> newLines, List<int> lineNumbers, bool force)
         {
             if (force)
             {
@@ -177,7 +178,9 @@ namespace appsvcbuild
 
             // edit dockerfile
             //_log.Info("editing dockerfile");
-            LineChanger(newLine, dockerFile, 1);
+            for (int i = 0; i < newLines.Count; i++) {
+                LineChanger(newLines[i], dockerFile, lineNumbers[i]);
+            }
         }
 
         public void Stage(String localRepo, String path) {

@@ -41,7 +41,7 @@ namespace appsvcbuild
     public static class HttpPhpPipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/patricklee2/php-ci.git";
+        private static String _githubURL = "https://github.com/patricklee2/php-template.git";
 
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
@@ -134,13 +134,12 @@ namespace appsvcbuild
         public static List<string> MakePipeline(List<String> newTags, ILogger log)
         {
             List<String> newVersions = new List<String>();
+
+
             foreach (String t in newTags)
             {
-                newVersions.Add(t.Replace("-apache", ""));
-            }
-
-            foreach (String version in newVersions)
-            {
+                String version = t.Replace("oryxprod/php-", "").Split(':')[0];
+                newVersions.Add(version);
                 int tries = 3;
                 while (true)
                 {
@@ -148,7 +147,7 @@ namespace appsvcbuild
                     {
                         tries--;
                         _mailUtils._version = version;
-                        PushGithubAsync(version);
+                        PushGithubAsync(t, version);
                         PushGithubAppAsync(version);
                         CreatePhpPipeline(version);
                         LogInfo(String.Format("php {0} built", version));
@@ -234,7 +233,7 @@ namespace appsvcbuild
             throw new Exception(String.Format("unexpected php version: {0}", version));
         }
 
-        private static async void PushGithubAsync(String version)
+        private static async void PushGithubAsync(String tag, String version)
         {
             String repoName = String.Format("php-{0}-apache", version);
 
@@ -244,7 +243,7 @@ namespace appsvcbuild
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\php-ci", parent);
+            String templateRepo = String.Format("{0}\\php-template", parent);
             String phpRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);
@@ -253,7 +252,7 @@ namespace appsvcbuild
                 String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String>{ String.Format("FROM php:{0}-apache", version), String.Format("ENV PHP_VERSION {0}", version) },
+                new List<String>{ String.Format("FROM {0}", tag), String.Format("ENV PHP_VERSION {0}", version) },
                 new List<int> { 1, 4 },
                 false);
 
@@ -287,7 +286,7 @@ namespace appsvcbuild
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\php-ci", parent);
+            String templateRepo = String.Format("{0}\\php-template", parent);
             String phpRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);

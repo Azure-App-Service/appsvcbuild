@@ -41,7 +41,7 @@ namespace appsvcbuild
     public static class HttpNodePipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/patricklee2/node-ci.git";
+        private static String _githubURL = "https://github.com/patricklee2/node-template.git";
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
         private static DockerhubUtils _dockerhubUtils;
@@ -253,7 +253,7 @@ namespace appsvcbuild
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\node-ci", parent);
+            String templateRepo = String.Format("{0}\\node-template", parent);
             String nodeRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);
@@ -296,7 +296,7 @@ namespace appsvcbuild
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\node-ci", parent);
+            String templateRepo = String.Format("{0}\\node-template", parent);
             String nodeRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);

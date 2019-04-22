@@ -41,7 +41,7 @@ namespace appsvcbuild
     public static class HttpPythonPipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/patricklee2/python-ci.git";
+        private static String _githubURL = "https://github.com/patricklee2/python-template.git";
 
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
@@ -238,7 +238,7 @@ namespace appsvcbuild
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\python-ci", parent);
+            String templateRepo = String.Format("{0}\\python-template", parent);
             String pythonRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);
@@ -281,7 +281,7 @@ namespace appsvcbuild
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\python-ci", parent);
+            String templateRepo = String.Format("{0}\\python-template", parent);
             String pythonRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);

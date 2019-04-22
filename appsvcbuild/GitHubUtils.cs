@@ -157,6 +157,8 @@ namespace appsvcbuild
             Repository.Clone(githubURL, dest, new CloneOptions { BranchName = "master" });
         }
 
+        // copy template folder to dest folder
+        // apply changes to dockerFile
         public void FillTemplate(String localRepo, String template, String dest, String dockerFile, List<String> newLines, List<int> lineNumbers, bool force)
         {
             if (force)

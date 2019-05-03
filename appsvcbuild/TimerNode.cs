@@ -60,7 +60,7 @@ namespace appsvcbuild
                 {
                     try
                     {
-                        List<String> tag = new List<String> { t };
+                        List<String> tag = new List<String> { String.Format("oryxprod/{0}", t) };
                         HttpClient client = new HttpClient();
                         String url = String.Format("https://appsvcbuildfunc.azurewebsites.net/api/HttpNodePipeline?code={0}", secretsUtils._appsvcbuildfuncMaster);
                         String body = "{\"newTags\": " + JsonConvert.SerializeObject(tag) + "}";

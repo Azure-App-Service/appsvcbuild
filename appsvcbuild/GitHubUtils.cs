@@ -93,6 +93,16 @@ namespace appsvcbuild
             repo.Branches.Update(repo.Head, b => b.Remote = remote.Name, b => b.UpstreamBranch = repo.Head.CanonicalName);
         }
 
+
+        public void CopyFile(String source, String target) {
+            CopyFile(new FileInfo(source), new FileInfo(target));
+        }
+
+        public void CopyFile(FileInfo source, FileInfo target)
+        {
+            source.CopyTo(target.ToString());
+        }
+
         public void DeepCopy(String source, String target)
         {
             DeepCopy(new DirectoryInfo(source), new DirectoryInfo(target));
@@ -153,8 +163,15 @@ namespace appsvcbuild
 
         public void Clone(String githubURL, String dest)
         {
-            //_log.Info("cloning " + githubURL + " to " + dest);
-            Repository.Clone(githubURL, dest, new CloneOptions { BranchName = "master" });
+            try
+            {
+                //_log.Info("cloning " + githubURL + " to " + dest);
+                Repository.Clone(githubURL, dest, new CloneOptions { BranchName = "master" });
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
         }
 
         // copy template folder to dest folder

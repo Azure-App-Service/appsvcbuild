@@ -263,7 +263,7 @@ namespace appsvcbuild
                 String.Format("{0}\\{1}\\main_images", templateRepo, getTemplate(version)),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/rubybase:{0}\n", version),
+                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/rubybase:{0}", version),
                                    String.Format("RUN export RUBY_VERSION=\"{0}\"", version)},
                 new List<int> { 1, 4 },
                 false);

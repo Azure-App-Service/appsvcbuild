@@ -247,7 +247,7 @@ namespace appsvcbuild
                 String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String> { String.Format("FROM oryxprod/{0}\n", tag) },
+                new List<String> { String.Format("FROM oryxprod/{0}", tag) },
                 new List<int> { 1 },
                 false);
 

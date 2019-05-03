@@ -38,10 +38,10 @@ using Microsoft.ApplicationInsights;
 
 namespace appsvcbuild
 {
-    public static class HttpNodePipeline
+    public static class HttpDotnetcorePipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/patricklee2/node-template.git";
+        private static String _githubURL = "https://github.com/patricklee2/dotnetcore-template.git";
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
         private static DockerhubUtils _dockerhubUtils;
@@ -50,16 +50,16 @@ namespace appsvcbuild
         private static StringBuilder _emailLog;
         private static TelemetryClient _telemetry;
 
-        [FunctionName("HttpNodePipeline")]
+        [FunctionName("HttpDotnetcorePipeline")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
             _telemetry = new TelemetryClient();
-            _telemetry.TrackEvent("HttpNodePipeline started");
+            _telemetry.TrackEvent("HttpDotnetcorePipeline started");
             await InitUtils(log);
 
-            LogInfo("HttpNodePipeline request received");
+            LogInfo("HttpDotnetcorePipeline request received");
 
             String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             dynamic data = JsonConvert.DeserializeObject(requestBody);
@@ -73,20 +73,20 @@ namespace appsvcbuild
             }
             else if (newTags.Count == 0)
             {
-                LogInfo("no new node tags found");
+                LogInfo("no new dotnetcore tags found");
                 await _mailUtils.SendSuccessMail(newTags, GetLog());
-                return (ActionResult)new OkObjectResult($"no new node tags found");
+                return (ActionResult)new OkObjectResult($"no new dotnetcore tags found");
             }
             else
             {
                 try
                 {
-                    LogInfo($"HttpNodePipeline executed at: { DateTime.Now }");
-                    LogInfo(String.Format("new node tags found {0}", String.Join(", ", newTags)));
+                    LogInfo($"HttpDotnetcorePipeline executed at: { DateTime.Now }");
+                    LogInfo(String.Format("new dotnetcore tags found {0}", String.Join(", ", newTags)));
                 
                     List<String> newVersions = MakePipeline(newTags, log);
                     await _mailUtils.SendSuccessMail(newVersions, GetLog());
-                    return (ActionResult)new OkObjectResult($"built new node images: {String.Join(", ", newVersions)}");
+                    return (ActionResult)new OkObjectResult($"built new dotnetcore images: {String.Join(", ", newVersions)}");
                 }
                 catch (Exception e)
                 {
@@ -114,7 +114,7 @@ namespace appsvcbuild
             _emailLog = new StringBuilder();
             _secretsUtils = new SecretsUtils();
             await _secretsUtils.GetSecrets();
-            _mailUtils = new MailUtils(new SendGridClient(_secretsUtils._sendGridApiKey), "Node");
+            _mailUtils = new MailUtils(new SendGridClient(_secretsUtils._sendGridApiKey), "Dotnetcore");
             _dockerhubUtils = new DockerhubUtils();
             _githubUtils = new GitHubUtils(_secretsUtils._gitToken);
             _pipelineUtils = new PipelineUtils(
@@ -136,7 +136,7 @@ namespace appsvcbuild
 
             foreach (String t in newTags)
             {
-                String version = t.Replace("node-", "").Split(':')[0];
+                String version = t.Replace("oryxprod/dotnetcore-", "").Split(':')[0];
                 newVersions.Add(version);
                 int tries = 3;
                 while (true)
@@ -146,9 +146,9 @@ namespace appsvcbuild
                         tries--;
                         _mailUtils._version = version;
                         PushGithubAsync(t, version);
-                        PushGithubAppAsync(t, version);
-                        CreateNodePipeline(version);
-                        LogInfo(String.Format("node {0} built", version));
+                        //PushGithubAppAsync(t, version);
+                        CreateDotnetcorePipeline(version);
+                        LogInfo(String.Format("dotnetcore {0} built", version));
                         break;
                     }
                     catch (Exception e)
@@ -156,7 +156,7 @@ namespace appsvcbuild
                         LogInfo(e.ToString());
                         if (tries <= 0)
                         {
-                            LogInfo(String.Format("node {0} failed", version));
+                            LogInfo(String.Format("dotnetcore {0} failed", version));
                             throw e;
                         }
                         LogInfo("trying again");
@@ -166,95 +166,92 @@ namespace appsvcbuild
             return newVersions;
         }
 
-        public static void CreateNodePipeline(String version)
+        public static void CreateDotnetcorePipeline(String version)
         {
-            LogInfo("creating pipeling for node hostingstart " + version);
+            LogInfo("creating pipeling for dotnetcore hostingstart " + version);
 
-            CreateNodeHostingStartPipeline(version);
-            CreateNodeAppPipeline(version);
+            CreateDotnetcoreHostingStartPipeline(version);
+            //CreateDotnetcoreAppPipeline(version);
         }
 
-        public static void CreateNodeHostingStartPipeline(String version)
+        public static void CreateDotnetcoreHostingStartPipeline(String version)
         {
-            String githubPath = String.Format("https://github.com/patricklee2/node-{0}", version);
-            String nodeVersionDash = version.Replace(".", "-");
-            String taskName = String.Format("appsvcbuild-node-hostingstart-{0}-task", nodeVersionDash);
-            String appName = String.Format("appsvcbuild-node-hostingstart-{0}-site", nodeVersionDash);
-            String webhookName = String.Format("appsvcbuildnodehostingstart{0}wh", version.Replace(".", ""));
-            String imageName = String.Format("node:{0}", version);
-            String planName = "appsvcbuild-node-plan";
+            String githubPath = String.Format("https://github.com/patricklee2/dotnetcore-{0}", version);
+            String dotnetcoreVersionDash = version.Replace(".", "-");
+            String taskName = String.Format("appsvcbuild-dotnetcore-hostingstart-{0}-task", dotnetcoreVersionDash);
+            String appName = String.Format("appsvcbuild-dotnetcore-hostingstart-{0}-site", dotnetcoreVersionDash);
+            String webhookName = String.Format("appsvcbuilddotnetcorehostingstart{0}wh", version.Replace(".", ""));
+            String imageName = String.Format("dotnetcore:{0}", version);
+            String planName = "appsvcbuild-dotnetcore-plan";
 
-            LogInfo("creating acr task for node hostingstart " + version);
+            LogInfo("creating acr task for dotnetcore hostingstart " + version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            LogInfo("creating webapp for node hostingstart " + version);
+            LogInfo("creating webapp for dotnetcore hostingstart " + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
             _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
-        public static void CreateNodeAppPipeline(String version)
+        public static void CreateDotnetcoreAppPipeline(String version)
         {
-            String githubPath = String.Format("https://github.com/patricklee2/nodeApp-{0}", version);
-            String nodeVersionDash = version.Replace(".", "-");
-            String taskName = String.Format("appsvcbuild-node-app-{0}-task", nodeVersionDash);
-            String appName = String.Format("appsvcbuild-node-app-{0}-site", nodeVersionDash);
-            String webhookName = String.Format("appsvcbuildnodeapp{0}wh", version.Replace(".", ""));
-            String imageName = String.Format("nodeapp:{0}", version);
-            String planName = "appsvcbuild-node-app-plan";
+            String githubPath = String.Format("https://github.com/patricklee2/dotnetcoreApp-{0}", version);
+            String dotnetcoreVersionDash = version.Replace(".", "-");
+            String taskName = String.Format("appsvcbuild-dotnetcore-app-{0}-task", dotnetcoreVersionDash);
+            String appName = String.Format("appsvcbuild-dotnetcore-app-{0}-site", dotnetcoreVersionDash);
+            String webhookName = String.Format("appsvcbuilddotnetcoreapp{0}wh", version.Replace(".", ""));
+            String imageName = String.Format("dotnetcoreapp:{0}", version);
+            String planName = "appsvcbuild-dotnetcore-app-plan";
 
-            LogInfo("creating acr task for node app" + version);
+            LogInfo("creating acr task for dotnetcore app" + version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            LogInfo("creating webapp for node app " + version);
+            LogInfo("creating webapp for dotnetcore app " + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
             _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         private static String getTemplate(String version)
         {
-            String[] versionNumbers = version.Split('.');
-            // node 4
-            if (Int32.Parse(versionNumbers[0]) == 4)
-            {
-                return "4-debian";
+            if (version.StartsWith("1")) {
+                return "debian-8";
+            } else {
+                return "debian-9";
             }
-            // node 6.2
-            else if ((Int32.Parse(versionNumbers[0]) == 6) && (Int32.Parse(versionNumbers[1]) == 2))
-            {
-                return "6.2-debian";
-            }
-            // 6.3 - 6.X
-            else if ((Int32.Parse(versionNumbers[0]) == 6) && (Int32.Parse(versionNumbers[1]) > 2))
-            {
-                return "6-debian";
-            }
-            //8.0 and 8.1
-            else if ((Int32.Parse(versionNumbers[0]) == 8) && (Int32.Parse(versionNumbers[1]) == 0 || Int32.Parse(versionNumbers[1]) == 1))
-            {
-                return "8.0-debian";
-            }
-            //8.2 - 8.10
-            else if (Int32.Parse(versionNumbers[0]) < 8 ||
-              ((Int32.Parse(versionNumbers[0]) == 8) && (Int32.Parse(versionNumbers[1]) < 11)))
-            {
-                return "debian";
-            }
-            else //8.11+
-            {
-                return "alpine";
-            }
+        }
+
+        private static String getZip(String version)
+        {
+            switch (version) {
+                case "1.0":
+                    return version;
+                case "1.1":
+                    return version;
+
+                case "2.0":
+                    return version;
+
+                case "2.1":
+                    return version;
+
+                case "2.2":
+                    return version;
+                default:
+                    LogInfo("unexpected version: " + version);
+                    throw new Exception("unexpected version: " + version);
+                }
+
         }
 
         private static async void PushGithubAsync(String tag, String version)
         {
-            String repoName = String.Format("node-{0}", version);
+            String repoName = String.Format("dotnetcore-{0}", version);
 
-            _log.LogInformation("creating github files for node " + version);
+            _log.LogInformation("creating github files for dotnetcore " + version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\node-template", parent);
-            String nodeRepo = String.Format("{0}\\{1}", parent, repoName);
+            String templateRepo = String.Format("{0}\\dotnetcore-template", parent);
+            String dotnetcoreRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);
             _githubUtils.FillTemplate(
@@ -262,70 +259,73 @@ namespace appsvcbuild
                 String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String> { String.Format("FROM oryxprod/{0}", tag) },
+                new List<String> { String.Format("FROM {0}", tag) },
                 new List<int> { 1 },
                 false);
+            _githubUtils.CopyFile(String.Format("{0}\\src\\{1}\\bin.zip", templateRepo, getZip(version)),
+                String.Format("{0}\\{1}\\bin.zip", templateRepo, repoName));
 
-            _githubUtils.CreateDir(nodeRepo);
+            _githubUtils.CreateDir(dotnetcoreRepo);
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
                     String.Format("https://github.com/patricklee2/{0}.git", repoName),
-                    nodeRepo);
+                    dotnetcoreRepo);
             }
             else
             {
                 await _githubUtils.InitGithubAsync(repoName);
-                _githubUtils.Init(nodeRepo);
-                _githubUtils.AddRemote(nodeRepo, repoName);
+                _githubUtils.Init(dotnetcoreRepo);
+                _githubUtils.AddRemote(dotnetcoreRepo, repoName);
             }
             
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), nodeRepo);
-            _githubUtils.Stage(nodeRepo, "*");
-            _githubUtils.CommitAndPush(nodeRepo, String.Format("[appsvcbuild] Add node {0}", version));
+            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), dotnetcoreRepo);
+            _githubUtils.Stage(dotnetcoreRepo, "*");
+            _githubUtils.CommitAndPush(dotnetcoreRepo, String.Format("[appsvcbuild] Add dotnetcore {0}", version));
             //_githubUtils.CleanUp(parent);
         }
 
         private static async void PushGithubAppAsync(String tag, String version)
         {
-            String repoName = String.Format("nodeApp-{0}", version);
+            String repoName = String.Format("dotnetcoreApp-{0}", version);
 
-            _log.LogInformation("creating github files for node " + version);
+            _log.LogInformation("creating github files for dotnetcore " + version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\node-template", parent);
-            String nodeRepo = String.Format("{0}\\{1}", parent, repoName);
+            String templateRepo = String.Format("{0}\\dotnetcore-template", parent);
+            String dotnetcoreRepo = String.Format("{0}\\{1}", parent, repoName);
 
             _githubUtils.Clone(_githubURL, templateRepo);
             _githubUtils.FillTemplate(
                 templateRepo,
-                String.Format("{0}\\nodeAppTemplate", templateRepo),
+                String.Format("{0}\\dotnetcoreAppTemplate", templateRepo),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/node:{0}\n", version) },
+                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/dotnetcore:{0}\n", version) },
                 new List<int> { 1 },
                 false);
 
-            _githubUtils.CreateDir(nodeRepo);
+            _githubUtils.CreateDir(dotnetcoreRepo);
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
                     String.Format("https://github.com/patricklee2/{0}.git", repoName),
-                    nodeRepo);
+                    dotnetcoreRepo);
             }
             else
             {
                 await _githubUtils.InitGithubAsync(repoName);
-                _githubUtils.Init(nodeRepo);
-                _githubUtils.AddRemote(nodeRepo, repoName);
+                _githubUtils.Init(dotnetcoreRepo);
+                _githubUtils.AddRemote(dotnetcoreRepo, repoName);
             }
 
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), nodeRepo);
-            _githubUtils.Stage(nodeRepo, "*");
-            _githubUtils.CommitAndPush(nodeRepo, String.Format("[appsvcbuild] Add node {0}", version));
+            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), dotnetcoreRepo);
+            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), dotnetcoreRepo);
+            _githubUtils.Stage(dotnetcoreRepo, "*");
+            _githubUtils.CommitAndPush(dotnetcoreRepo, String.Format("[appsvcbuild] Add dotnetcore {0}", version));
             //_githubUtils.CleanUp(parent);
         }
     }

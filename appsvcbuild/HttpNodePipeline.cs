@@ -136,7 +136,7 @@ namespace appsvcbuild
 
             foreach (String t in newTags)
             {
-                String version = t.Replace("node-", "").Split(':')[0];
+                String version = t.Replace("oryxprod/node-", "").Split(':')[0];
                 newVersions.Add(version);
                 int tries = 3;
                 while (true)
@@ -262,7 +262,7 @@ namespace appsvcbuild
                 String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
                 String.Format("{0}\\{1}", templateRepo, repoName),
                 String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String> { String.Format("FROM oryxprod/{0}", tag) },
+                new List<String> { String.Format("FROM {0}", tag) },
                 new List<int> { 1 },
                 false);
 

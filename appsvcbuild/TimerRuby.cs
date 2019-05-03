@@ -37,7 +37,7 @@ namespace appsvcbuild
 {
     public static class TimerRuby
     {
-        [FunctionName("TimerRuby")]
+        //[FunctionName("TimerRuby")]
         public static async System.Threading.Tasks.Task RunAsync([TimerTrigger("0 8 * * *")]TimerInfo myTimer, ILogger log)
         {
             TelemetryClient telemetry = new TelemetryClient();

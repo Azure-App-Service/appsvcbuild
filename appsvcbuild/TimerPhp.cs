@@ -37,7 +37,7 @@ namespace appsvcbuild
 {
     public static class TimerPhp
     {
-        [FunctionName("TimerPhp")]
+        //[FunctionName("TimerPhp")]
         public static async System.Threading.Tasks.Task RunAsync([TimerTrigger("0 8 * * *")]TimerInfo myTimer, ILogger log)
         {
             TelemetryClient telemetry = new TelemetryClient();
@@ -48,8 +48,9 @@ namespace appsvcbuild
                 await secretsUtils.GetSecrets();
                 DockerhubUtils dockerhubUtils = new DockerhubUtils();
 
-                List<String> newTags = await dockerhubUtils.PollDockerhub("https://registry.hub.docker.com/v2/repositories/library/php/tags",
-                    new Regex("^[0-9]+\\.[0-9]+\\.[0-9]+-apache$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+                List<String> newTags = await dockerhubUtils.PollDockerhubRepos("https://registry.hub.docker.com/v2/repositories/oryxprod",
+                    new Regex("^php-[0-9]+\\.[0-9]+$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+                    new Regex("^(?!.*latest).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
                     DateTime.Now.AddDays(-1));
 
                 log.LogInformation(String.Format("Php: {0} tags found {1}", newTags.Count, String.Join(", ", newTags)));
@@ -58,7 +59,7 @@ namespace appsvcbuild
                 {
                     try
                     {
-                        List<String> tag = new List<String> { t };
+                        List<String> tag = new List<String> { String.Format("oryxprod/{0}", t) };
                         HttpClient client = new HttpClient();
                         String url = String.Format("https://appsvcbuildfunc.azurewebsites.net/api/HttpPhpPipeline?code={0}", secretsUtils._appsvcbuildfuncMaster);
                         String body = "{\"newTags\": " + JsonConvert.SerializeObject(tag) + "}";

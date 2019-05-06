@@ -41,7 +41,7 @@ namespace appsvcbuild
     public static class HttpPhpPipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/patricklee2/php-template.git";
+        private static String _githubURL = "https://github.com/Azure-App-Service/php-template.git";
 
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
@@ -178,7 +178,7 @@ namespace appsvcbuild
         {
             _log.LogInformation("creating pipeling for php hostingstart " + version);
 
-            String githubPath = String.Format("https://github.com/patricklee2/php-{0}-apache", version);
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/php-{0}-apache", version);
             String phpVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-php-hostingstart-{0}-task", phpVersionDash);
             String appName = String.Format("appsvcbuild-php-hostingstart-{0}-site", phpVersionDash);
@@ -197,7 +197,7 @@ namespace appsvcbuild
         {
             _log.LogInformation("creating pipeling for php app " + version);
 
-            String githubPath = String.Format("https://github.com/patricklee2/php-app-{0}-apache", version);
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/php-app-{0}-apache", version);
             String phpVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-php-app-{0}-task", phpVersionDash);
             String appName = String.Format("appsvcbuild-php-app-{0}-site", phpVersionDash);
@@ -260,7 +260,7 @@ namespace appsvcbuild
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
                     phpRepo);
             }
             else
@@ -303,7 +303,7 @@ namespace appsvcbuild
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
                     phpRepo);
             }
             else

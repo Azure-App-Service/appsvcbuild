@@ -41,7 +41,7 @@ namespace appsvcbuild
     public static class HttpDotnetcorePipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/patricklee2/dotnetcore-template.git";
+        private static String _githubURL = "https://github.com/Azure-App-Service/dotnetcore-template.git";
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
         private static DockerhubUtils _dockerhubUtils;
@@ -176,7 +176,7 @@ namespace appsvcbuild
 
         public static void CreateDotnetcoreHostingStartPipeline(String version)
         {
-            String githubPath = String.Format("https://github.com/patricklee2/dotnetcore-{0}", version);
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/dotnetcore-{0}", version);
             String dotnetcoreVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-dotnetcore-hostingstart-{0}-task", dotnetcoreVersionDash);
             String appName = String.Format("appsvcbuild-dotnetcore-hostingstart-{0}-site", dotnetcoreVersionDash);
@@ -193,7 +193,7 @@ namespace appsvcbuild
 
         public static void CreateDotnetcoreAppPipeline(String version)
         {
-            String githubPath = String.Format("https://github.com/patricklee2/dotnetcoreApp-{0}", version);
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/dotnetcoreApp-{0}", version);
             String dotnetcoreVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-dotnetcore-app-{0}-task", dotnetcoreVersionDash);
             String appName = String.Format("appsvcbuild-dotnetcore-app-{0}-site", dotnetcoreVersionDash);
@@ -269,7 +269,7 @@ namespace appsvcbuild
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
                     dotnetcoreRepo);
             }
             else
@@ -312,7 +312,7 @@ namespace appsvcbuild
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
                     dotnetcoreRepo);
             }
             else

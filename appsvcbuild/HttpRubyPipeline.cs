@@ -41,7 +41,7 @@ namespace appsvcbuild
     public static class HttpRubyPipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/patricklee2/ruby-template.git";
+        private static String _githubURL = "https://github.com/Azure-App-Service/ruby-template.git";
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
         private static DockerhubUtils _dockerhubUtils;
@@ -169,7 +169,7 @@ namespace appsvcbuild
 
         public static void CreateRubyBasePipeline(String version)
         {
-            String githubPath = String.Format("https://github.com/patricklee2/rubybase-{0}", version);
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/rubybase-{0}", version);
             String rubyVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-ruby-base-{0}-task", rubyVersionDash);
             String imageName = String.Format("rubybase:{0}", version);
@@ -181,7 +181,7 @@ namespace appsvcbuild
 
         public static void CreateRubyHostingStartPipeline(String version)
         {
-            String githubPath = String.Format("https://github.com/patricklee2/ruby-{0}", version);
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/ruby-{0}", version);
             String rubyVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-ruby-hostingstart-{0}-task", rubyVersionDash);
             String appName = String.Format("appsvcbuild-ruby-hostingstart-{0}-site", rubyVersionDash);
@@ -228,7 +228,7 @@ namespace appsvcbuild
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
                     rubyRepo);
             }
             else
@@ -272,7 +272,7 @@ namespace appsvcbuild
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
                     rubyRepo);
             }
             else

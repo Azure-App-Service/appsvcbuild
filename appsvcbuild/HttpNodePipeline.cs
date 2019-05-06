@@ -41,7 +41,7 @@ namespace appsvcbuild
     public static class HttpNodePipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/patricklee2/node-template.git";
+        private static String _githubURL = "https://github.com/Azure-App-Service/node-template.git";
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
         private static DockerhubUtils _dockerhubUtils;
@@ -176,7 +176,7 @@ namespace appsvcbuild
 
         public static void CreateNodeHostingStartPipeline(String version)
         {
-            String githubPath = String.Format("https://github.com/patricklee2/node-{0}", version);
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/node-{0}", version);
             String nodeVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-node-hostingstart-{0}-task", nodeVersionDash);
             String appName = String.Format("appsvcbuild-node-hostingstart-{0}-site", nodeVersionDash);
@@ -193,7 +193,7 @@ namespace appsvcbuild
 
         public static void CreateNodeAppPipeline(String version)
         {
-            String githubPath = String.Format("https://github.com/patricklee2/nodeApp-{0}", version);
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/nodeApp-{0}", version);
             String nodeVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-node-app-{0}-task", nodeVersionDash);
             String appName = String.Format("appsvcbuild-node-app-{0}-site", nodeVersionDash);
@@ -270,7 +270,7 @@ namespace appsvcbuild
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
                     nodeRepo);
             }
             else
@@ -288,7 +288,7 @@ namespace appsvcbuild
 
         private static async void PushGithubAppAsync(String tag, String version)
         {
-            String repoName = String.Format("nodeApp-{0}", version);
+            String repoName = String.Format("node-app-{0}", version);
 
             _log.LogInformation("creating github files for node " + version);
             Random random = new Random();
@@ -313,7 +313,7 @@ namespace appsvcbuild
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
                     nodeRepo);
             }
             else

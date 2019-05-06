@@ -46,7 +46,7 @@ namespace appsvcbuild
         {
             HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
-            String url = String.Format("https://api.github.com/repos/patricklee2/{0}", repoName);
+            String url = String.Format("https://api.github.com/repos/blessedimagepipeline/{0}", repoName);
             
             HttpResponseMessage response = await client.GetAsync(url);
             
@@ -62,7 +62,7 @@ namespace appsvcbuild
         {
             HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
-            String url = String.Format("https://api.github.com/user/repos?access_token={0}", _gitToken);
+            String url = String.Format("https://api.github.com/orgs/blessedimagepipeline/repos?access_token={0}", _gitToken);
             String body = "{ \"name\": " + JsonConvert.SerializeObject(name) + " }";
 
             HttpResponseMessage response = await client.PostAsync(url, new StringContent(body));
@@ -89,7 +89,7 @@ namespace appsvcbuild
         public void AddRemote(String dir, String repoName)
         {
             Repository repo = new Repository(dir);
-            Remote remote = repo.Network.Remotes.Add("origin", String.Format("https://github.com/patricklee2/{0}.git", repoName));
+            Remote remote = repo.Network.Remotes.Add("origin", String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName));
             repo.Branches.Update(repo.Head, b => b.Remote = remote.Name, b => b.UpstreamBranch = repo.Head.CanonicalName);
         }
 

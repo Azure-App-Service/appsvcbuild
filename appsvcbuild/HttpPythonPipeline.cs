@@ -41,7 +41,7 @@ namespace appsvcbuild
     public static class HttpPythonPipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/patricklee2/python-template.git";
+        private static String _githubURL = "https://github.com/Azure-App-Service/python-template.git";
 
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
@@ -177,7 +177,7 @@ namespace appsvcbuild
         {
             _log.LogInformation("creating pipeling for python hostingstart " + version);
 
-            String githubPath = String.Format("https://github.com/patricklee2/python-{0}", version);
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/python-{0}", version);
             String pythonVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-python-hostingstart-{0}-task", pythonVersionDash);
             String appName = String.Format("appsvcbuild-python-hostingstart-{0}-site", pythonVersionDash);
@@ -196,7 +196,7 @@ namespace appsvcbuild
         {
             _log.LogInformation("creating pipeling for python app " + version);
 
-            String githubPath = String.Format("https://github.com/patricklee2/python-app-{0}", version);
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/python-app-{0}", version);
             String pythonVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-python-app-{0}-task", pythonVersionDash);
             String appName = String.Format("appsvcbuild-python-app-{0}-site", pythonVersionDash);
@@ -255,7 +255,7 @@ namespace appsvcbuild
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
                     pythonRepo);
             }
             else
@@ -298,7 +298,7 @@ namespace appsvcbuild
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/patricklee2/{0}.git", repoName),
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
                     pythonRepo);
             }
             else

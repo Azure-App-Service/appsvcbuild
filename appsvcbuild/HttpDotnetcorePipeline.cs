@@ -136,7 +136,7 @@ namespace appsvcbuild
 
             foreach (String t in newTags)
             {
-                String version = t.Replace("oryxprod/dotnetcore-", "").Split(':')[0];
+                String version = t.Split('-')[1].Split(':')[0]; //lazy fix
                 newVersions.Add(version);
                 int tries = 3;
                 while (true)
@@ -264,6 +264,8 @@ namespace appsvcbuild
                 false);
             _githubUtils.CopyFile(String.Format("{0}\\src\\{1}\\bin.zip", templateRepo, getZip(version)),
                 String.Format("{0}\\{1}\\bin.zip", templateRepo, repoName));
+            _githubUtils.DeepCopy(String.Format("{0}\\src\\{1}\\src", templateRepo, getZip(version)),
+                String.Format("{0}\\{1}\\src", templateRepo, repoName));
 
             _githubUtils.CreateDir(dotnetcoreRepo);
             if (await _githubUtils.RepoExistsAsync(repoName))

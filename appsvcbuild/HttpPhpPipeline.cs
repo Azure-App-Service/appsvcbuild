@@ -138,7 +138,7 @@ namespace appsvcbuild
 
             foreach (String t in newTags)
             {
-                String version = t.Replace("oryxprod/php-", "").Split(':')[0];
+                String version = t.Split('-')[1].Split(':')[0]; //lazy fix
                 newVersions.Add(version);
                 int tries = 3;
                 while (true)

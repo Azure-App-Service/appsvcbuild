@@ -235,11 +235,11 @@ namespace appsvcbuild
             else if (Int32.Parse(versionNumbers[0]) < 8 ||
               ((Int32.Parse(versionNumbers[0]) == 8) && (Int32.Parse(versionNumbers[1]) < 11)))
             {
-                return "debian";
+                return "debian-8";
             }
             else //8.11+
             {
-                return "alpine";
+                return "debian-9";
             }
         }
 

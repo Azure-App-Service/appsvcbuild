@@ -163,14 +163,29 @@ namespace appsvcbuild
 
         public void Clone(String githubURL, String dest)
         {
-            try
+            int tries = 0;
+            while (tries <= 3)
             {
-                //_log.Info("cloning " + githubURL + " to " + dest);
-                Repository.Clone(githubURL, dest, new CloneOptions { BranchName = "master" });
-            }
-            catch (Exception ex)
-            {
-                throw ex;
+                try
+                {
+                    //_log.Info("cloning " + githubURL + " to " + dest);
+                    Repository.Clone(githubURL, dest, new CloneOptions { BranchName = "master" });
+                    break;
+                }
+                catch (LibGit2Sharp.NameConflictException ex) //folder already exisits
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    tries = tries + 1;
+                    System.Threading.Thread.Sleep(1 * 60 * 1000); // sleep 1 min
+                    if (tries > 3)
+                    {
+                        //_log.Info("delete repo" + githubURL);
+                        throw ex;
+                    }
+                }
             }
         }
 

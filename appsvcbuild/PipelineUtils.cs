@@ -83,7 +83,7 @@ namespace appsvcbuild
                        name: taskName,
                        status: Microsoft.Azure.Management.ContainerRegistry.Models.TaskStatus.Enabled,
                        timeout: 3600,
-                       trigger: new TriggerProperties(
+                       /*trigger: new TriggerProperties(
                            sourceTriggers: new List<SourceTrigger> {
                                new SourceTrigger(
                                    sourceRepository: new SourceProperties(
@@ -99,7 +99,7 @@ namespace appsvcbuild
                            baseImageTrigger: new BaseImageTrigger(
                                BaseImageTriggerType.Runtime,
                                "defaultBaseimageTriggerName",
-                               TriggerStatus.Enabled)),
+                               TriggerStatus.Enabled)),*/
                        agentConfiguration: new AgentProperties(cpu: 2)
                        );
             task.Validate();

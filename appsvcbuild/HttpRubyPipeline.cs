@@ -185,15 +185,15 @@ namespace appsvcbuild
             String rubyVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-ruby-hostingstart-{0}-task", rubyVersionDash);
             String appName = String.Format("appsvcbuild-ruby-hostingstart-{0}-site", rubyVersionDash);
-            String webhookName = String.Format("appsvcbuildrubyhostingstart{0}wh", version.Replace(".", ""));
+            //String webhookName = String.Format("appsvcbuildrubyhostingstart{0}wh", version.Replace(".", ""));
             String imageName = String.Format("ruby:{0}", version);
             String planName = "appsvcbuild-ruby-hostingstart-plan";
 
             LogInfo("creating acr task for ruby hostingstart" + version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             LogInfo("creating webapp for ruby hostingstart " + version);
-            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            //String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
+            //_pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         private static String getTemplate(String version)

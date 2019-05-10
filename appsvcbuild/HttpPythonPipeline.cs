@@ -181,7 +181,7 @@ namespace appsvcbuild
             String pythonVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-python-hostingstart-{0}-task", pythonVersionDash);
             String appName = String.Format("appsvcbuild-python-hostingstart-{0}-site", pythonVersionDash);
-            String webhookName = String.Format("appsvcbuildpythonhostingstart{0}wh", version.Replace(".", ""));
+            //String webhookName = String.Format("appsvcbuildpythonhostingstart{0}wh", version.Replace(".", ""));
             String imageName = String.Format("python:{0}", version);
             String planName = "appsvcbuild-python-plan";
 
@@ -189,7 +189,7 @@ namespace appsvcbuild
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             _log.LogInformation("creating webapp for python hostingstart " + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            //_pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         public static void CreatePythonAppPipeline(String version)
@@ -200,7 +200,7 @@ namespace appsvcbuild
             String pythonVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-python-app-{0}-task", pythonVersionDash);
             String appName = String.Format("appsvcbuild-python-app-{0}-site", pythonVersionDash);
-            String webhookName = String.Format("appsvcbuildpythonapp{0}wh", version.Replace(".", ""));
+            //String webhookName = String.Format("appsvcbuildpythonapp{0}wh", version.Replace(".", ""));
             String imageName = String.Format("pythonapp:{0}", version);
             String planName = "appsvcbuild-python-app-plan";
 
@@ -208,7 +208,7 @@ namespace appsvcbuild
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             _log.LogInformation("creating webapp for python app" + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            //_pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         private static String getTemplate(String version)

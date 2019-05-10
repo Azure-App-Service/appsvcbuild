@@ -182,7 +182,7 @@ namespace appsvcbuild
             String phpVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-php-hostingstart-{0}-task", phpVersionDash);
             String appName = String.Format("appsvcbuild-php-hostingstart-{0}-site", phpVersionDash);
-            String webhookName = String.Format("appsvcbuildphphostingstart{0}wh", version.Replace(".", ""));
+            //String webhookName = String.Format("appsvcbuildphphostingstart{0}wh", version.Replace(".", ""));
             String imageName = String.Format("php:{0}-apache", version);
             String planName = "appsvcbuild-php-plan";
 
@@ -190,7 +190,7 @@ namespace appsvcbuild
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             _log.LogInformation("creating webapp for php hostingstart " + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            //_pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         public static void CreatePhpAppPipeline(String version)
@@ -201,7 +201,7 @@ namespace appsvcbuild
             String phpVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-php-app-{0}-task", phpVersionDash);
             String appName = String.Format("appsvcbuild-php-app-{0}-site", phpVersionDash);
-            String webhookName = String.Format("appsvcbuildphpapp{0}wh", version.Replace(".", ""));
+            //String webhookName = String.Format("appsvcbuildphpapp{0}wh", version.Replace(".", ""));
             String imageName = String.Format("phpapp:{0}-apache", version);
             String planName = "appsvcbuild-php-app-plan";
 
@@ -209,7 +209,7 @@ namespace appsvcbuild
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             _log.LogInformation("creating webapp for php app" + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            //_pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         private static String getTemplate(String version)

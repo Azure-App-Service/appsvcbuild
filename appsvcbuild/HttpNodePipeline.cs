@@ -210,38 +210,21 @@ namespace appsvcbuild
 
         private static String getTemplate(String version)
         {
-            /*String[] versionNumbers = version.Split('.');
+            String[] versionNumbers = version.Split('.');
             // node 4
             if (Int32.Parse(versionNumbers[0]) == 4)
             {
                 return "4-debian";
-            }
-            // node 6.2
-            else if ((Int32.Parse(versionNumbers[0]) == 6) && (Int32.Parse(versionNumbers[1]) == 2))
-            {
-                return "6.2-debian";
-            }
-            // 6.3 - 6.X
-            else if ((Int32.Parse(versionNumbers[0]) == 6) && (Int32.Parse(versionNumbers[1]) > 2))
-            {
-                return "6-debian";
             }
             //8.0 and 8.1
             else if ((Int32.Parse(versionNumbers[0]) == 8) && (Int32.Parse(versionNumbers[1]) == 0 || Int32.Parse(versionNumbers[1]) == 1))
             {
                 return "8.0-debian";
             }
-            //8.2 - 8.10
-            else if (Int32.Parse(versionNumbers[0]) < 8 ||
-              ((Int32.Parse(versionNumbers[0]) == 8) && (Int32.Parse(versionNumbers[1]) < 11)))
-            {
-                return "debian-8";
-            }
             else //8.11+
             {
                 return "debian-9";
-            }*/
-            return "debian-9";
+            }
         }
 
         private static async void PushGithubAsync(String tag, String version)

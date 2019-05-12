@@ -180,7 +180,7 @@ namespace appsvcbuild
             String dotnetcoreVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-dotnetcore-hostingstart-{0}-task", dotnetcoreVersionDash);
             String appName = String.Format("appsvcbuild-dotnetcore-hostingstart-{0}-site", dotnetcoreVersionDash);
-            //String webhookName = String.Format("appsvcbuilddotnetcorehostingstart{0}wh", version.Replace(".", ""));
+            String webhookName = String.Format("appsvcbuilddotnetcorehostingstart{0}wh", version.Replace(".", ""));
             String imageName = String.Format("dotnetcore:{0}", version);
             String planName = "appsvcbuild-dotnetcore-plan";
 
@@ -188,7 +188,7 @@ namespace appsvcbuild
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             LogInfo("creating webapp for dotnetcore hostingstart " + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            //_pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         public static void CreateDotnetcoreAppPipeline(String version)
@@ -197,7 +197,7 @@ namespace appsvcbuild
             String dotnetcoreVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-dotnetcore-app-{0}-task", dotnetcoreVersionDash);
             String appName = String.Format("appsvcbuild-dotnetcore-app-{0}-site", dotnetcoreVersionDash);
-            //String webhookName = String.Format("appsvcbuilddotnetcoreapp{0}wh", version.Replace(".", ""));
+            String webhookName = String.Format("appsvcbuilddotnetcoreapp{0}wh", version.Replace(".", ""));
             String imageName = String.Format("dotnetcoreapp:{0}", version);
             String planName = "appsvcbuild-dotnetcore-app-plan";
 
@@ -205,7 +205,7 @@ namespace appsvcbuild
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             LogInfo("creating webapp for dotnetcore app " + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            //_pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         private static String getTemplate(String version)

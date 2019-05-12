@@ -180,7 +180,7 @@ namespace appsvcbuild
             String nodeVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-node-hostingstart-{0}-task", nodeVersionDash);
             String appName = String.Format("appsvcbuild-node-hostingstart-{0}-site", nodeVersionDash);
-            //String webhookName = String.Format("appsvcbuildnodehostingstart{0}wh", version.Replace(".", ""));
+            String webhookName = String.Format("appsvcbuildnodehostingstart{0}wh", version.Replace(".", ""));
             String imageName = String.Format("node:{0}", version);
             String planName = "appsvcbuild-node-plan";
 
@@ -188,7 +188,7 @@ namespace appsvcbuild
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             LogInfo("creating webapp for node hostingstart " + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            //_pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         public static void CreateNodeAppPipeline(String version)
@@ -197,7 +197,7 @@ namespace appsvcbuild
             String nodeVersionDash = version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-node-app-{0}-task", nodeVersionDash);
             String appName = String.Format("appsvcbuild-node-app-{0}-site", nodeVersionDash);
-            //String webhookName = String.Format("appsvcbuildnodeapp{0}wh", version.Replace(".", ""));
+            String webhookName = String.Format("appsvcbuildnodeapp{0}wh", version.Replace(".", ""));
             String imageName = String.Format("nodeapp:{0}", version);
             String planName = "appsvcbuild-node-app-plan";
 
@@ -205,7 +205,7 @@ namespace appsvcbuild
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
             LogInfo("creating webapp for node app " + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            //_pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
         }
 
         private static String getTemplate(String version)

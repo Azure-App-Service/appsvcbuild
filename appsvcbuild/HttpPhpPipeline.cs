@@ -85,7 +85,7 @@ namespace appsvcbuild
                     LogInfo($"HttpPhpPipeline executed at: { DateTime.Now }");
                     LogInfo(String.Format("new php tags found {0}", String.Join(", ", newTags)));
                 
-                    List<String> newVersions = MakePipeline(newTags, log);
+                    List<String> newVersions = await MakePipeline(newTags, log);
                     await _mailUtils.SendSuccessMail(newVersions, GetLog());
                     return (ActionResult)new OkObjectResult($"built new php images: {String.Join(", ", newVersions)}");
                 }
@@ -131,7 +131,7 @@ namespace appsvcbuild
             _pipelineUtils._log = log;
         }
 
-        public static List<string> MakePipeline(List<String> newTags, ILogger log)
+        public static async Task<List<string>> MakePipeline(List<String> newTags, ILogger log)
         {
             List<String> newVersions = new List<String>();
 
@@ -147,9 +147,10 @@ namespace appsvcbuild
                     {
                         tries--;
                         _mailUtils._version = version;
-                        PushGithubAsync(t, version);
-                        PushGithubAppAsync(version);
-                        CreatePhpPipeline(version);
+                        await PushGithubAsync(t, version);
+                        await CreatePhpHostingStartPipeline(version);
+                        await PushGithubAppAsync(version);
+                        await CreatePhpAppPipeline(version);
                         LogInfo(String.Format("php {0} built", version));
                         break;
                     }
@@ -168,15 +169,9 @@ namespace appsvcbuild
             return newVersions;
         }
 
-        public static void CreatePhpPipeline(String version)
+        public static async Task<Boolean> CreatePhpHostingStartPipeline(String version)
         {
-            CreatePhpHostingStartPipeline(version);
-            CreatePhpAppPipeline(version);
-        }
-
-        public static void CreatePhpHostingStartPipeline(String version)
-        {
-            _log.LogInformation("creating pipeling for php hostingstart " + version);
+            LogInfo("creating pipeling for php hostingstart " + version);
 
             String githubPath = String.Format("https://github.com/blessedimagepipeline/php-{0}-apache", version);
             String phpVersionDash = version.Replace(".", "-");
@@ -186,16 +181,20 @@ namespace appsvcbuild
             String imageName = String.Format("php:{0}-apache", version);
             String planName = "appsvcbuild-php-plan";
 
-            _log.LogInformation("creating acr task for php hostingstart " + version);
+            LogInfo("creating acr task for php hostingstart " + version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            _log.LogInformation("creating webapp for php hostingstart " + version);
+            LogInfo("done reating acr task for php hostingstart " + version);
+
+            LogInfo("creating webapp for php hostingstart " + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            LogInfo("done creating webapp for php hostingstart " + version); ;
+
+            return true;
         }
 
-        public static void CreatePhpAppPipeline(String version)
+        public static async Task<Boolean> CreatePhpAppPipeline(String version)
         {
-            _log.LogInformation("creating pipeling for php app " + version);
+            LogInfo("creating pipeling for php app " + version);
 
             String githubPath = String.Format("https://github.com/blessedimagepipeline/php-app-{0}-apache", version);
             String phpVersionDash = version.Replace(".", "-");
@@ -205,11 +204,15 @@ namespace appsvcbuild
             String imageName = String.Format("phpapp:{0}-apache", version);
             String planName = "appsvcbuild-php-app-plan";
 
-            _log.LogInformation("creating acr task for php app" + version);
+            LogInfo("creating acr task for php app" + version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            _log.LogInformation("creating webapp for php app" + version);
+            LogInfo("done creating acr task for php app" + version);
+
+            LogInfo("creating webapp for php app" + version);
             String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
+            LogInfo("done creating webapp for php app" + version);
+
+            return true;
         }
 
         private static String getTemplate(String version)
@@ -233,11 +236,11 @@ namespace appsvcbuild
             throw new Exception(String.Format("unexpected php version: {0}", version));
         }
 
-        private static async void PushGithubAsync(String tag, String version)
+        private static async Task<Boolean> PushGithubAsync(String tag, String version)
         {
             String repoName = String.Format("php-{0}-apache", version);
 
-            _log.LogInformation("creating github files for php " + version);
+            LogInfo("creating github files for php " + version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
@@ -274,13 +277,16 @@ namespace appsvcbuild
             _githubUtils.Stage(phpRepo, "*");
             _githubUtils.CommitAndPush(phpRepo, String.Format("[appsvcbuild] Add php {0}", version));
             //_githubUtils.CleanUp(parent);
+            LogInfo("done creating github files for php " + version);
+
+            return true;
         }
 
-        private static async void PushGithubAppAsync(String version)
+        private static async Task<Boolean> PushGithubAppAsync(String version)
         {
             String repoName = String.Format("php-app-{0}-apache", version);
 
-            _log.LogInformation("creating github files for php " + version);
+            LogInfo("creating github files for php app " + version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
@@ -317,6 +323,9 @@ namespace appsvcbuild
             _githubUtils.Stage(phpRepo, "*");
             _githubUtils.CommitAndPush(phpRepo, String.Format("[appsvcbuild] Add php {0}", version));
             //_githubUtils.CleanUp(parent);
+            LogInfo("done creating github files for php app " + version);
+
+            return true;
         }
     }
 }

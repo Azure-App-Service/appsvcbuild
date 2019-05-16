@@ -213,7 +213,7 @@ namespace appsvcbuild
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
             String localOutputRepoPath = String.Format("{0}\\{1}", parent, outputRepoName);
 
-            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, "master");
+            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.Branch);
             _githubUtils.CreateDir(localOutputRepoPath);
             if (await _githubUtils.RepoExistsAsync(outputRepoName))
             {

@@ -41,8 +41,6 @@ namespace appsvcbuild
     public static class HttpPythonPipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/Azure-App-Service/python-template.git";
-
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
         private static DockerhubUtils _dockerhubUtils;
@@ -64,18 +62,19 @@ namespace appsvcbuild
 
             String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             dynamic data = JsonConvert.DeserializeObject(requestBody);
-            List<String> newTags = data?.newTags.ToObject<List<String>>();
+            List<BuildRequest> buildRequests = data?.buildRequests.ToObject<List<BuildRequest>>();
+            _pipelineUtils.processAddDefaults(buildRequests);
 
-            if (newTags == null)
+            if (buildRequests == null)
             {
                 LogInfo("Failed: missing parameters `newTags` in body");
                 await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
                 return new BadRequestObjectResult("Failed: missing parameters `newTags` in body");
             }
-            else if (newTags.Count == 0)
+            else if (buildRequests.Count == 0)
             {
                 LogInfo("no new python tags found");
-                await _mailUtils.SendSuccessMail(newTags, GetLog());
+                await _mailUtils.SendSuccessMail(new List<string> { "fix me later" }, GetLog());
                 return (ActionResult)new OkObjectResult($"no new python tags found");
             }
             else
@@ -83,9 +82,9 @@ namespace appsvcbuild
                 try
                 {
                     LogInfo($"HttpPythonPipeline executed at: { DateTime.Now }");
-                    LogInfo(String.Format("new python tags found {0}", String.Join(", ", newTags)));
-                
-                    List<String> newVersions = await MakePipeline(newTags, log);
+                    LogInfo(String.Format("new python tags found {0}", String.Join(", ", buildRequests)));
+
+                    List<String> newVersions = await MakePipeline(buildRequests, log);
                     await _mailUtils.SendSuccessMail(newVersions, GetLog());
                     return (ActionResult)new OkObjectResult($"built new python images: {String.Join(", ", newVersions)}");
                 }
@@ -131,26 +130,25 @@ namespace appsvcbuild
             _pipelineUtils._log = log;
         }
 
-        public static async Task<List<string>> MakePipeline(List<String> newTags, ILogger log)
+        public static async Task<List<string>> MakePipeline(List<BuildRequest> buildRequests, ILogger log)
         {
             List<String> newVersions = new List<String>();
 
-            foreach (String t in newTags)
+            foreach (BuildRequest br in buildRequests)
             {
-                String version = t.Split('-')[1].Split(':')[0]; //lazy fix
-                newVersions.Add(version);
+                newVersions.Add(br.Version);
                 int tries = 3;
                 {
                     try
                     {
                         tries--;
-                        _mailUtils._version = version;
-                        await PushGithubAsync(t, version);
-                        await CreatePythonHostingStartPipeline(version);
-                        await PushGithubAppAsync(t, version);
-                        await CreatePythonAppPipeline(version);
+                        _mailUtils._version = br.Version;
+                        await PushGithubAsync(br);
+                        await CreatePythonHostingStartPipeline(br);
+                        await PushGithubAppAsync(br);
+                        await CreatePythonAppPipeline(br);
 
-                        LogInfo(String.Format("python {0} built", version));
+                        LogInfo(String.Format("python {0} built", br.Version));
                         break;
                     }
                     catch (Exception e)
@@ -158,7 +156,7 @@ namespace appsvcbuild
                         LogInfo(e.ToString());
                         if (tries <= 0)
                         {
-                            LogInfo(String.Format("python {0} failed", version));
+                            LogInfo(String.Format("python {0} failed", br.Version));
                             throw e;
                         }
                         LogInfo("trying again");
@@ -167,156 +165,141 @@ namespace appsvcbuild
             }
             return newVersions;
         }
-
-        public static async Task<Boolean> CreatePythonHostingStartPipeline(String version)
+        
+        public static async Task<Boolean> CreatePythonHostingStartPipeline(BuildRequest br)
         {
-            LogInfo("creating pipeling for python hostingstart " + version);
+            LogInfo("creating pipeling for python hostingstart " + br.Version);
 
-            String githubPath = String.Format("https://github.com/blessedimagepipeline/python-{0}", version);
-            String pythonVersionDash = version.Replace(".", "-");
+            String pythonVersionDash = br.Version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-python-hostingstart-{0}-task", pythonVersionDash);
-            String appName = String.Format("appsvcbuild-python-hostingstart-{0}-site", pythonVersionDash);
-            String webhookName = String.Format("appsvcbuildpythonhostingstart{0}wh", version.Replace(".", ""));
-            String imageName = String.Format("python:{0}", version);
+            String appName = br.TestWebAppName;
+            String imageName = br.OutputImage;
             String planName = "appsvcbuild-python-plan";
 
-            LogInfo("creating acr task for python hostingstart " + version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            LogInfo("done creating acr task for python hostingstart " + version);
-            LogInfo("creating webapp for python hostingstart " + version);
-            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            LogInfo("done creating webapp for python hostingstart " + version);
+            LogInfo("creating acr task for python hostingstart " + br.Version);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, _secretsUtils._gitToken, imageName);
+            LogInfo("done creating acr task for python hostingstart " + br.Version);
+
+            LogInfo("creating webapp for python hostingstart " + br.Version);
+            String cdUrl = _pipelineUtils.CreateWebapp(br.Version, acrPassword, appName, imageName, planName);
+            LogInfo("done creating webapp for python hostingstart " + br.Version);
 
             return true;
         }
 
-        public static async Task<Boolean> CreatePythonAppPipeline(String version)
+        public static async Task<Boolean> CreatePythonAppPipeline(BuildRequest br)
         {
-            LogInfo("creating pipeling for python app " + version);
+            LogInfo("creating pipeling for python app " + br.Version);
 
-            String githubPath = String.Format("https://github.com/blessedimagepipeline/python-app-{0}", version);
-            String pythonVersionDash = version.Replace(".", "-");
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/python-app-{0}", br.Version);
+            String pythonVersionDash = br.Version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-python-app-{0}-task", pythonVersionDash);
             String appName = String.Format("appsvcbuild-python-app-{0}-site", pythonVersionDash);
-            String webhookName = String.Format("appsvcbuildpythonapp{0}wh", version.Replace(".", ""));
-            String imageName = String.Format("pythonapp:{0}", version);
+            String imageName = String.Format("pythonapp:{0}", br.Version);
             String planName = "appsvcbuild-python-app-plan";
 
-            LogInfo("creating acr task for python app" + version);
+            LogInfo("creating acr task for python app" + br.Version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            LogInfo("done creating acr task for python app" + version);
-            LogInfo("creating webapp for python app" + version);
-            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            LogInfo("done creating webapp for python app" + version);
+            LogInfo("done creating acr task for python app" + br.Version);
+
+            LogInfo("creating webapp for python app" + br.Version);
+            String cdUrl = _pipelineUtils.CreateWebapp(br.Version, acrPassword, appName, imageName, planName);
+            LogInfo("done creating webapp for python app" + br.Version);
 
             return true;
         }
 
-        private static String getTemplate(String version)
+        private static async Task<Boolean> PushGithubAsync(BuildRequest br)
         {
-            if (version.StartsWith("2.7"))
-            {
-                return "template-2.7";
-            }
-            else if (version.StartsWith("3.6"))
-            {
-                return "template-3.6";
-            }
-            else if (version.StartsWith("3.7"))
-            {
-                return "template-3.7";
-            }
-            throw new Exception(String.Format("unexpected python version: {0}", version));
-        }
-
-        private static async Task<Boolean> PushGithubAsync(String tag, String version)
-        {
-            String repoName = String.Format("python-{0}", version);
-
-            LogInfo("creating github files for python " + version);
+            LogInfo("creating github files for python " + br.Version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\python-template", parent);
-            String pythonRepo = String.Format("{0}\\{1}", parent, repoName);
+            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
+            String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.OutputRepoName);
 
-            _githubUtils.Clone(_githubURL, templateRepo);
-            _githubUtils.FillTemplate(
-                templateRepo,
-                String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
-                String.Format("{0}\\{1}", templateRepo, repoName),
-                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String> { String.Format("FROM {0}", tag) },
-                new List<int> { 1 },
+            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.Branch);
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
+                String.Format("{0}\\{1}", localTemplateRepoPath, br.OutputRepoName),
                 false);
+            _githubUtils.FillTemplate(
+                String.Format("{0}\\{1}\\DockerFile", localTemplateRepoPath, br.OutputRepoName),
+                new List<String> { String.Format("FROM {0}", br.BaseImage) },
+                new List<int> { 1 });
 
-            _githubUtils.CreateDir(pythonRepo);
-            if (await _githubUtils.RepoExistsAsync(repoName))
+            _githubUtils.CreateDir(localOutputRepoPath);
+            if (await _githubUtils.RepoExistsAsync(br.OutputRepoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
-                    pythonRepo);
+                    br.OutputRepoURL,
+                    localOutputRepoPath,
+                    "master");
             }
             else
             {
-                await _githubUtils.InitGithubAsync(repoName);
-                _githubUtils.Init(pythonRepo);
-                _githubUtils.AddRemote(pythonRepo, repoName);
+                await _githubUtils.InitGithubAsync(br.OutputRepoName);
+                _githubUtils.Init(localOutputRepoPath);
+                _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoName);
             }
 
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), pythonRepo);
-            _githubUtils.Stage(pythonRepo, "*");
-            _githubUtils.CommitAndPush(pythonRepo, String.Format("[appsvcbuild] Add python {0}", version));
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\{1}", localTemplateRepoPath, br.OutputRepoName),
+                localOutputRepoPath,
+                false);
+
+            _githubUtils.Stage(localOutputRepoPath, "*");
+            _githubUtils.CommitAndPush(localOutputRepoPath, String.Format("[appsvcbuild] Add python {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for python " + version);
+            LogInfo("done creating github files for python " + br.Version);
 
             return true;
         }
 
-        private static async Task<Boolean> PushGithubAppAsync(String tag, String version)
+        private static async Task<Boolean> PushGithubAppAsync(BuildRequest br)
         {
-            String repoName = String.Format("python-app-{0}", version);
+            String outputRepoName = String.Format("python-app-{0}", br.Version);
 
-            LogInfo("creating github files for python app" + version);
+            LogInfo("creating github files for python app" + br.Version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\python-template", parent);
-            String pythonRepo = String.Format("{0}\\{1}", parent, repoName);
+            String localTemplateRepoPath = String.Format("{0}\\python-template", parent);
+            String localOutputRepoPath = String.Format("{0}\\{1}", parent, outputRepoName);
 
-            _githubUtils.Clone(_githubURL, templateRepo);
-            _githubUtils.FillTemplate(
-                templateRepo,
-                String.Format("{0}\\template-app", templateRepo),
-                String.Format("{0}\\{1}", templateRepo, repoName),
-                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String>{ String.Format("FROM appsvcbuildacr.azurecr.io/python:{0}\n", version) },
-                new List<int> { 1 },
-                false);
-
-            _githubUtils.CreateDir(pythonRepo);
-            if (await _githubUtils.RepoExistsAsync(repoName))
+            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.Branch);
+            _githubUtils.CreateDir(localOutputRepoPath);
+            if (await _githubUtils.RepoExistsAsync(outputRepoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
-                    pythonRepo);
+                    String.Format("https://github.com/blessedimagepipeline/{0}.git", outputRepoName),
+                    localOutputRepoPath,
+                    "master");
             }
             else
             {
-                await _githubUtils.InitGithubAsync(repoName);
-                _githubUtils.Init(pythonRepo);
-                _githubUtils.AddRemote(pythonRepo, repoName);
+                await _githubUtils.InitGithubAsync(outputRepoName);
+                _githubUtils.Init(localOutputRepoPath);
+                _githubUtils.AddRemote(localOutputRepoPath, outputRepoName);
             }
 
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), pythonRepo);
-            _githubUtils.Stage(pythonRepo, "*");
-            _githubUtils.CommitAndPush(pythonRepo, String.Format("[appsvcbuild] Add python {0}", version));
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\template-app", localTemplateRepoPath),
+                localOutputRepoPath,
+                false);
+            _githubUtils.FillTemplate(
+                String.Format("{0}\\DockerFile", localOutputRepoPath),
+                new List<String>{ String.Format("FROM appsvcbuildacr.azurecr.io/{0}", br.OutputImage) },
+                new List<int> { 1 });
+
+            _githubUtils.Stage(localOutputRepoPath, "*");
+            _githubUtils.CommitAndPush(localOutputRepoPath, String.Format("[appsvcbuild] Add python {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for python app" + version);
+            LogInfo("done creating github files for python app" + br.Version);
 
             return true;
         }

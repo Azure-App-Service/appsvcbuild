@@ -41,7 +41,6 @@ namespace appsvcbuild
     public static class HttpRubyPipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/Azure-App-Service/ruby-template.git";
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
         private static DockerhubUtils _dockerhubUtils;
@@ -63,18 +62,19 @@ namespace appsvcbuild
 
             String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             dynamic data = JsonConvert.DeserializeObject(requestBody);
-            List<String> newTags = data?.newTags.ToObject<List<String>>();
+            List<BuildRequest> buildRequests = data?.buildRequests.ToObject<List<BuildRequest>>();
+            _pipelineUtils.processAddDefaults(buildRequests);
 
-            if (newTags == null)
+            if (buildRequests == null)
             {
                 LogInfo("Failed: missing parameters `newTags` in body");
                 await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
                 return new BadRequestObjectResult("Failed: missing parameters `newTags` in body");
             }
-            else if (newTags.Count == 0)
+            else if (buildRequests.Count == 0)
             {
                 LogInfo("no new ruby tags found");
-                await _mailUtils.SendSuccessMail(newTags, GetLog());
+                await _mailUtils.SendSuccessMail(new List<string> { "fix me later" }, GetLog());
                 return (ActionResult)new OkObjectResult($"no new ruby tags found");
             }
             else
@@ -82,9 +82,9 @@ namespace appsvcbuild
                 try
                 {
                     LogInfo($"HttpRubyPipeline executed at: { DateTime.Now }");
-                    LogInfo(String.Format("new ruby tags found {0}", String.Join(", ", newTags)));
+                    LogInfo(String.Format("new ruby tags found {0}", String.Join(", ", buildRequests)));
                 
-                    List<String> newVersions = await MakePipeline(newTags, log);
+                    List<String> newVersions = await MakePipeline(buildRequests, log);
                     await _mailUtils.SendSuccessMail(newVersions, GetLog());
                     return (ActionResult)new OkObjectResult($"built new ruby images: {String.Join(", ", newVersions)}");
                 }
@@ -130,27 +130,26 @@ namespace appsvcbuild
             _pipelineUtils._log = log;
         }
 
-        public static async Task<List<string>> MakePipeline(List<String> newTags, ILogger log)
+        public static async Task<List<string>> MakePipeline(List<BuildRequest> buildRequests, ILogger log)
         {
             List<String> newVersions = new List<String>();
 
-            foreach (String t in newTags)
+            foreach (BuildRequest br in buildRequests)
             {
-                String version = t.Split(':')[1];
-                newVersions.Add(version);
+                newVersions.Add(br.Version);
                 int tries = 3;
                 while (true)
                 {
                     try
                     {
                         tries--;
-                        _mailUtils._version = version;
-                        LogInfo("creating pipeling for ruby " + version);
-                        await PushGithubBaseAsync(t, version);
-                        await CreateRubyBasePipeline(version);
-                        await PushGithubHostingStartAsync(t, version);
-                        await CreateRubyHostingStartPipeline(version); LogInfo(String.Format("ruby {0} built", version));
-                        LogInfo("done creating pipeling for ruby " + version);
+                        _mailUtils._version = br.Version;
+                        LogInfo("creating pipeling for ruby " + br.Version);
+                        await PushGithubBaseAsync(br);
+                        await CreateRubyBasePipeline(br);
+                        await PushGithubHostingStartAsync(br);
+                        await CreateRubyHostingStartPipeline(br);
+                        LogInfo(String.Format("ruby {0} built", br.Version));
                         break;
                     }
                     catch (Exception e)
@@ -158,7 +157,7 @@ namespace appsvcbuild
                         LogInfo(e.ToString());
                         if (tries <= 0)
                         {
-                            LogInfo(String.Format("ruby {0} failed", version));
+                            LogInfo(String.Format("ruby {0} failed", br.Version));
                             throw e;
                         }
                         LogInfo("trying again");
@@ -168,132 +167,125 @@ namespace appsvcbuild
             return newVersions;
         }
 
-        public static async System.Threading.Tasks.Task CreateRubyBasePipeline(String version)
+        public static async System.Threading.Tasks.Task CreateRubyBasePipeline(BuildRequest br)
         {
-            String githubPath = String.Format("https://github.com/blessedimagepipeline/rubybase-{0}", version);
-            String rubyVersionDash = version.Replace(".", "-");
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/rubybase-{0}", br.Version);
+            String rubyVersionDash = br.Version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-ruby-base-{0}-task", rubyVersionDash);
-            String imageName = String.Format("rubybase:{0}", version);
+            String imageName = String.Format("rubybase:{0}", br.Version);
             
 
-            LogInfo("creating acr task for ruby base " + version);
+            LogInfo("creating acr task for ruby base " + br.Version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            LogInfo("done creating acr task for ruby base " + version);
+            LogInfo("done creating acr task for ruby base " + br.Version);
             return;
         }
 
-        public static async System.Threading.Tasks.Task CreateRubyHostingStartPipeline(String version)
+        public static async System.Threading.Tasks.Task CreateRubyHostingStartPipeline(BuildRequest br)
         {
-            String githubPath = String.Format("https://github.com/blessedimagepipeline/ruby-{0}", version);
-            String rubyVersionDash = version.Replace(".", "-");
+            String githubPath = br.OutputRepoURL;
+            String rubyVersionDash = br.Version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-ruby-hostingstart-{0}-task", rubyVersionDash);
-            String appName = String.Format("appsvcbuild-ruby-hostingstart-{0}-site", rubyVersionDash);
-            String webhookName = String.Format("appsvcbuildrubyhostingstart{0}wh", version.Replace(".", ""));
-            String imageName = String.Format("ruby:{0}", version);
+            String appName = br.TestWebAppName;
+            String imageName = br.OutputImage;
             String planName = "appsvcbuild-ruby-hostingstart-plan";
 
-            LogInfo("creating acr task for ruby hostingstart" + version);
+            LogInfo("creating acr task for ruby hostingstart" + br.Version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            LogInfo("done creating acr task for ruby hostingstart" + version);
-            LogInfo("creating webapp for ruby hostingstart " + version);
-            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            LogInfo("done creating webapp for ruby hostingstart " + version);
+            LogInfo("done creating acr task for ruby hostingstart" + br.Version);
+
+            LogInfo("creating webapp for ruby hostingstart " + br.Version);
+            String cdUrl = _pipelineUtils.CreateWebapp(br.Version, acrPassword, appName, imageName, planName);
+            LogInfo("done creating webapp for ruby hostingstart " + br.Version);
             return;
         }
 
-        private static String getTemplate(String version)
+        private static async System.Threading.Tasks.Task PushGithubBaseAsync(BuildRequest br)
         {
-            return "templates";
-        }
+            String outputRepoName = String.Format("rubybase-{0}", br.Version);
 
-        private static async System.Threading.Tasks.Task PushGithubBaseAsync(String tag, String version)
-        {
-            String repoName = String.Format("rubybase-{0}", version);
-
-            LogInfo("creating github files for ruby base " + version);
+            LogInfo("creating github files for ruby base " + br.Version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\ruby-template", parent);
-            String rubyRepo = String.Format("{0}\\{1}", parent, repoName);
+            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
+            String localOutputRepoPath = String.Format("{0}\\{1}", parent, outputRepoName);
 
-            _githubUtils.Clone(_githubURL, templateRepo);
-            _githubUtils.FillTemplate(
-                templateRepo,
-                String.Format("{0}\\{1}\\base_images", templateRepo, getTemplate(version)),
-                String.Format("{0}\\{1}", templateRepo, repoName),
-                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String> { String.Format("ENV RUBY_VERSION=\"{0}\"", version) },
-                new List<int> { 4 },
-                false);
-
-            _githubUtils.CreateDir(rubyRepo);
-            if (await _githubUtils.RepoExistsAsync(repoName))
+            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, "master");
+            _githubUtils.CreateDir(localOutputRepoPath);
+            if (await _githubUtils.RepoExistsAsync(outputRepoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
-                    rubyRepo);
+                     String.Format("https://github.com/blessedimagepipeline/rubybase-{0}.git", br.Version),
+                     localOutputRepoPath,
+                    "master");
             }
             else
             {
-                await _githubUtils.InitGithubAsync(repoName);
-                _githubUtils.Init(rubyRepo);
-                _githubUtils.AddRemote(rubyRepo, repoName);
+                await _githubUtils.InitGithubAsync(outputRepoName);
+                _githubUtils.Init(localOutputRepoPath);
+                _githubUtils.AddRemote(localOutputRepoPath, outputRepoName);
             }
-            
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), rubyRepo);
-            _githubUtils.Stage(rubyRepo, "*");
-            _githubUtils.CommitAndPush(rubyRepo, String.Format("[appsvcbuild] Add ruby {0}", version));
+
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\{1}\\base_images", localTemplateRepoPath, br.TemplateName),
+                localOutputRepoPath,
+                false);
+            _githubUtils.FillTemplate(
+                String.Format("{0}\\DockerFile", localOutputRepoPath),
+                new List<String> { String.Format("ENV RUBY_VERSION=\"{0}\"", br.Version) },
+                new List<int> { 4 });
+
+            _githubUtils.Stage(localOutputRepoPath, "*");
+            _githubUtils.CommitAndPush(localOutputRepoPath, String.Format("[appsvcbuild] Add ruby {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for ruby base " + version);
+            LogInfo("done creating github files for ruby base " + br.Version);
             return;
         }
 
-        private static async System.Threading.Tasks.Task PushGithubHostingStartAsync(String tag, String version)
+        private static async System.Threading.Tasks.Task PushGithubHostingStartAsync(BuildRequest br)
         {
-            String repoName = String.Format("ruby-{0}", version);
-
-            LogInfo("creating github files for ruby " + version);
+            LogInfo("creating github files for ruby " + br.Version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\ruby-template", parent);
-            String rubyRepo = String.Format("{0}\\{1}", parent, repoName);
+            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
+            String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.OutputRepoName);
 
-            _githubUtils.Clone(_githubURL, templateRepo);
-            _githubUtils.FillTemplate(
-                templateRepo,
-                String.Format("{0}\\{1}\\main_images", templateRepo, getTemplate(version)),
-                String.Format("{0}\\{1}", templateRepo, repoName),
-                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/rubybase:{0}", version),
-                                   String.Format("RUN export RUBY_VERSION=\"{0}\"", version)},
-                new List<int> { 1, 4 },
-                false);
-
-            _githubUtils.CreateDir(rubyRepo);
-            if (await _githubUtils.RepoExistsAsync(repoName))
+            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.Branch);
+            _githubUtils.CreateDir(localOutputRepoPath);
+            if (await _githubUtils.RepoExistsAsync(br.OutputRepoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
-                    rubyRepo);
+                    br.OutputRepoURL,
+                    localOutputRepoPath,
+                    "master");
             }
             else
             {
-                await _githubUtils.InitGithubAsync(repoName);
-                _githubUtils.Init(rubyRepo);
-                _githubUtils.AddRemote(rubyRepo, repoName);
+                await _githubUtils.InitGithubAsync(br.OutputRepoName);
+                _githubUtils.Init(localOutputRepoPath);
+                _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoName);
             }
 
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), rubyRepo);
-            _githubUtils.Stage(rubyRepo, "*");
-            _githubUtils.CommitAndPush(rubyRepo, String.Format("[appsvcbuild] Add ruby {0}", version));
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\{1}\\main_images", localTemplateRepoPath, br.TemplateName),
+                localOutputRepoPath,
+                false);
+            _githubUtils.FillTemplate(
+                String.Format("{0}\\DockerFile", localOutputRepoPath),
+                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/rubybase:{0}", br.Version),
+                                   String.Format("RUN export RUBY_VERSION=\"{0}\"", br.Version)},
+                new List<int> { 1, 4 });
+
+            _githubUtils.Stage(localOutputRepoPath, "*");
+            _githubUtils.CommitAndPush(localOutputRepoPath, String.Format("[appsvcbuild] Add ruby {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for ruby " + version);
+            LogInfo("done creating github files for ruby " + br.Version);
             return;
         }
     }

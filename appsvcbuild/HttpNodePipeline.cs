@@ -41,7 +41,6 @@ namespace appsvcbuild
     public static class HttpNodePipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/Azure-App-Service/node-template.git";
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
         private static DockerhubUtils _dockerhubUtils;
@@ -63,18 +62,19 @@ namespace appsvcbuild
 
             String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             dynamic data = JsonConvert.DeserializeObject(requestBody);
-            List<String> newTags = data?.newTags.ToObject<List<String>>();
+            List<BuildRequest> buildRequests = data?.buildRequests.ToObject<List<BuildRequest>>();
+            _pipelineUtils.processAddDefaults(buildRequests);
 
-            if (newTags == null)
+            if (buildRequests == null)
             {
                 LogInfo("Failed: missing parameters `newTags` in body");
                 await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
                 return new BadRequestObjectResult("Failed: missing parameters `newTags` in body");
             }
-            else if (newTags.Count == 0)
+            else if (buildRequests.Count == 0)
             {
                 LogInfo("no new node tags found");
-                await _mailUtils.SendSuccessMail(newTags, GetLog());
+                await _mailUtils.SendSuccessMail(new List<string>{"fix me later"}, GetLog());
                 return (ActionResult)new OkObjectResult($"no new node tags found");
             }
             else
@@ -82,9 +82,9 @@ namespace appsvcbuild
                 try
                 {
                     LogInfo($"HttpNodePipeline executed at: { DateTime.Now }");
-                    LogInfo(String.Format("new node tags found {0}", String.Join(", ", newTags)));
+                    LogInfo(String.Format("new node tags found {0}", String.Join(", ", buildRequests.ToString())));
                 
-                    List<String> newVersions = await MakePipeline(newTags, log);
+                    List<String> newVersions = await MakePipeline(buildRequests, log);
                     await _mailUtils.SendSuccessMail(newVersions, GetLog());
                     return (ActionResult)new OkObjectResult($"built new node images: {String.Join(", ", newVersions)}");
                 }
@@ -130,23 +130,22 @@ namespace appsvcbuild
             _pipelineUtils._log = log;
         }
 
-        public static async Task<List<string>> MakePipeline(List<String> newTags, ILogger log)
+        public static async Task<List<string>> MakePipeline(List<BuildRequest> buildRequests, ILogger log)
         {
             List<String> newVersions = new List<String>();
 
-            foreach (String t in newTags)
+            foreach (BuildRequest br in buildRequests)
             {
-                String version = t.Split('-')[1].Split(':')[0]; //lazy fix
-                newVersions.Add(version);
+                newVersions.Add(br.Version);
                 int tries = 3;
                 while (true)
                 {
                     try
                     {
                         tries--;
-                        _mailUtils._version = version;
-                        Boolean b = await CreateNodePipeline(version, t);
-                        LogInfo(String.Format("node {0} built", version));
+                        _mailUtils._version = br.Version;
+                        Boolean b = await CreateNodePipeline(br);
+                        LogInfo(String.Format("node {0} built", br.Version));
                         break;
                     }
                     catch (Exception e)
@@ -154,7 +153,7 @@ namespace appsvcbuild
                         LogInfo(e.ToString());
                         if (tries <= 0)
                         {
-                            LogInfo(String.Format("node {0} failed", version));
+                            LogInfo(String.Format("node {0} failed", br.Version));
                             throw e;
                         }
                         LogInfo("trying again");
@@ -164,165 +163,143 @@ namespace appsvcbuild
             return newVersions;
         }
 
-        public static async Task<Boolean> CreateNodePipeline(String version, String tag)
+        public static async Task<Boolean> CreateNodePipeline(BuildRequest br)
         {
-            LogInfo("creating pipeling for node hostingstart " + version);
-            Boolean b = await PushGithubAsync(tag, version);
-            b = await CreateNodeHostingStartPipeline(version);
-            b = await PushGithubAppAsync(tag, version);
-            b = await CreateNodeAppPipeline(version);
-            LogInfo("done creating pipeling for node hostingstart " + version);
+            LogInfo("creating pipeling for node hostingstart " + br.Version);
+            Boolean b = await PushGithubAsync(br);
+            b = await CreateNodeHostingStartPipeline(br);
+            b = await PushGithubAppAsync(br);
+            b = await CreateNodeAppPipeline(br);
+            LogInfo("done creating pipeling for node hostingstart " + br.Version);
             return true;
         }
 
-        public static async Task<Boolean> CreateNodeHostingStartPipeline(String version)
+        public static async Task<Boolean> CreateNodeHostingStartPipeline(BuildRequest br)
         {
-            String githubPath = String.Format("https://github.com/blessedimagepipeline/node-{0}", version);
-            String nodeVersionDash = version.Replace(".", "-");
+            String githubPath = br.OutputRepoURL;
+            String nodeVersionDash = br.Version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-node-hostingstart-{0}-task", nodeVersionDash);
-            String appName = String.Format("appsvcbuild-node-hostingstart-{0}-site", nodeVersionDash);
-            String webhookName = String.Format("appsvcbuildnodehostingstart{0}wh", version.Replace(".", ""));
-            String imageName = String.Format("node:{0}", version);
+            String appName = br.TestWebAppName;
+            String imageName = br.OutputImage;
             String planName = "appsvcbuild-node-plan";
 
-            LogInfo("creating acr task for node hostingstart " + version);
+            LogInfo("creating acr task for node hostingstart " + br.Version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            LogInfo("done creating acr task for node hostingstart " + version);
-            LogInfo("creating webapp for node hostingstart " + version);
-            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
-            LogInfo("done creating webapp for node hostingstart " + version);
+            LogInfo("done creating acr task for node hostingstart " + br.Version);
+
+            LogInfo("creating webapp for node hostingstart " + br.Version);
+            String cdUrl = _pipelineUtils.CreateWebapp(br.Version, acrPassword, appName, imageName, planName);
+            LogInfo("done creating webapp for node hostingstart " + br.Version);
 
             return true;
         }
 
-        public static async Task<Boolean> CreateNodeAppPipeline(String version)
+        public static async Task<Boolean> CreateNodeAppPipeline(BuildRequest br)
         {
-            String githubPath = String.Format("https://github.com/blessedimagepipeline/node-app-{0}", version);
-            String nodeVersionDash = version.Replace(".", "-");
+            String githubPath = String.Format("https://github.com/blessedimagepipeline/node-app-{0}", br.Version);
+            String nodeVersionDash = br.Version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-node-app-{0}-task", nodeVersionDash);
             String appName = String.Format("appsvcbuild-node-app-{0}-site", nodeVersionDash);
-            String webhookName = String.Format("appsvcbuildnodeapp{0}wh", version.Replace(".", ""));
-            String imageName = String.Format("nodeapp:{0}", version);
+            String imageName = String.Format("nodeapp:{0}", br.Version);
             String planName = "appsvcbuild-node-app-plan";
 
-            LogInfo("creating acr task for node app" + version);
+            LogInfo("creating acr task for node app" + br.Version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            LogInfo("done creating acr task for node app" + version);
-            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            _pipelineUtils.CreateWebhook(cdUrl, webhookName, imageName);
-            LogInfo("done creating webapp for node app " + version);
+            LogInfo("done creating acr task for node app" + br.Version);
+
+            LogInfo("creating webapp for node app " + br.Version);
+            String cdUrl = _pipelineUtils.CreateWebapp(br.Version, acrPassword, appName, imageName, planName);
+            LogInfo("done creating webapp for node app " + br.Version);
 
             return true;
         }
 
-        private static String getTemplate(String version)
+        private static async Task<Boolean> PushGithubAsync(BuildRequest br)
         {
-            String[] versionNumbers = version.Split('.');
-            // node 4
-            if (Int32.Parse(versionNumbers[0]) == 4)
-            {
-                return "4-debian";
-            }
-            //8.0 and 8.1
-            else if ((Int32.Parse(versionNumbers[0]) == 8) && (Int32.Parse(versionNumbers[1]) == 0 || Int32.Parse(versionNumbers[1]) == 1))
-            {
-                return "8.0-debian";
-            }
-            else //8.11+
-            {
-                return "debian-9";
-            }
-        }
-
-        private static async Task<Boolean> PushGithubAsync(String tag, String version)
-        {
-            String repoName = String.Format("node-{0}", version);
-
-            _log.LogInformation("creating github files for node " + version);
+            _log.LogInformation("creating github files for node " + br.Version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\node-template", parent);
-            String nodeRepo = String.Format("{0}\\{1}", parent, repoName);
+            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
+            String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.OutputRepoName);
 
-            _githubUtils.Clone(_githubURL, templateRepo);
-            _githubUtils.FillTemplate(
-                templateRepo,
-                String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
-                String.Format("{0}\\{1}", templateRepo, repoName),
-                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String> { String.Format("FROM {0}", tag) },
-                new List<int> { 1 },
-                false);
-
-            _githubUtils.CreateDir(nodeRepo);
-            if (await _githubUtils.RepoExistsAsync(repoName))
+            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.Branch);
+            _githubUtils.CreateDir(localOutputRepoPath);
+            if (await _githubUtils.RepoExistsAsync(br.TemplateRepoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
-                    nodeRepo);
+                    br.OutputRepoURL,
+                    localOutputRepoPath,
+                    "master");
             }
             else
             {
-                await _githubUtils.InitGithubAsync(repoName);
-                _githubUtils.Init(nodeRepo);
-                _githubUtils.AddRemote(nodeRepo, repoName);
+                await _githubUtils.InitGithubAsync(br.TemplateRepoName);
+                _githubUtils.Init(localOutputRepoPath);
+                _githubUtils.AddRemote(localOutputRepoPath, br.TemplateRepoName);
             }
-            
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), nodeRepo);
-            _githubUtils.Stage(nodeRepo, "*");
-            _githubUtils.CommitAndPush(nodeRepo, String.Format("[appsvcbuild] Add node {0}", version));
+
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
+                localOutputRepoPath,
+                false);
+            _githubUtils.FillTemplate(
+                String.Format("{0}\\DockerFile", localOutputRepoPath),
+                new List<String> { String.Format("FROM {0}", br.BaseImage) },
+                new List<int> { 1 });
+
+            _githubUtils.Stage(localOutputRepoPath, "*");
+            _githubUtils.CommitAndPush(localOutputRepoPath, String.Format("[appsvcbuild] Add node {0}", br.Version));
             //_githubUtils.CleanUp(parent);
 
-            _log.LogInformation("done creating github files for node " + version);
+            _log.LogInformation("done creating github files for node " + br.Version);
             return true;
         }
 
-        private static async Task<Boolean> PushGithubAppAsync(String tag, String version)
+        private static async Task<Boolean> PushGithubAppAsync(BuildRequest br)
         {
-            String repoName = String.Format("node-app-{0}", version);
+            String repoName = String.Format("node-app-{0}", br.Version);
 
-            _log.LogInformation("creating github files for node app " + version);
+            _log.LogInformation("creating github files for node app " + br.Version);
             Random random = new Random();
             String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
             String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\node-template", parent);
-            String nodeRepo = String.Format("{0}\\{1}", parent, repoName);
+            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
+            String localOutputRepoPath = String.Format("{0}\\{1}", parent, repoName);
 
-            _githubUtils.Clone(_githubURL, templateRepo);
-            _githubUtils.FillTemplate(
-                templateRepo,
-                String.Format("{0}\\nodeAppTemplate", templateRepo),
-                String.Format("{0}\\{1}", templateRepo, repoName),
-                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/node:{0}\n", version) },
-                new List<int> { 1 },
-                false);
-
-            _githubUtils.CreateDir(nodeRepo);
+            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, "master");
+            _githubUtils.CreateDir(localOutputRepoPath);
             if (await _githubUtils.RepoExistsAsync(repoName))
             {
                 _githubUtils.Clone(
                     String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
-                    nodeRepo);
+                    localOutputRepoPath,
+                    "master");
             }
             else
             {
                 await _githubUtils.InitGithubAsync(repoName);
-                _githubUtils.Init(nodeRepo);
-                _githubUtils.AddRemote(nodeRepo, repoName);
+                _githubUtils.Init(localOutputRepoPath);
+                _githubUtils.AddRemote(localOutputRepoPath, repoName);
             }
 
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), nodeRepo);
-            _githubUtils.Stage(nodeRepo, "*");
-            _githubUtils.CommitAndPush(nodeRepo, String.Format("[appsvcbuild] Add node {0}", version));
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\nodeAppTemplate", localTemplateRepoPath),
+                localOutputRepoPath,
+                false);
+            _githubUtils.FillTemplate(
+                String.Format("{0}\\DockerFile", localOutputRepoPath),
+                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/", br.OutputImage) },
+                new List<int> { 1 });
+
+            _githubUtils.Stage(localOutputRepoPath, "*");
+            _githubUtils.CommitAndPush(localOutputRepoPath, String.Format("[appsvcbuild] Add node {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            _log.LogInformation("done creating github files for node app " + version);
+            _log.LogInformation("done creating github files for node app " + br.Version);
             return true;
         }
     }

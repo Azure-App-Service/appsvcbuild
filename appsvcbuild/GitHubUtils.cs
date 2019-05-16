@@ -94,7 +94,11 @@ namespace appsvcbuild
         }
 
 
-        public void CopyFile(String source, String target) {
+        public void CopyFile(String source, String target, Boolean force) {
+            if (force)
+            {
+                new FileInfo(target).Delete();
+            }
             CopyFile(new FileInfo(source), new FileInfo(target));
         }
 
@@ -103,8 +107,12 @@ namespace appsvcbuild
             source.CopyTo(target.ToString());
         }
 
-        public void DeepCopy(String source, String target)
+        public void DeepCopy(String source, String target, Boolean force)
         {
+            if (force)
+            {
+                new DirectoryInfo(target).Delete(true);
+            }
             DeepCopy(new DirectoryInfo(source), new DirectoryInfo(target));
         }
 
@@ -161,7 +169,7 @@ namespace appsvcbuild
             dirInfo.Delete();
         }
 
-        public void Clone(String githubURL, String dest)
+        public void Clone(String githubURL, String dest, String branch)
         {
             int tries = 0;
             while (tries <= 3)
@@ -169,7 +177,7 @@ namespace appsvcbuild
                 try
                 {
                     //_log.Info("cloning " + githubURL + " to " + dest);
-                    Repository.Clone(githubURL, dest, new CloneOptions { BranchName = "master" });
+                    Repository.Clone(githubURL, dest, new CloneOptions { BranchName = branch });
                     break;
                 }
                 catch (LibGit2Sharp.NameConflictException ex) //folder already exisits
@@ -191,25 +199,8 @@ namespace appsvcbuild
 
         // copy template folder to dest folder
         // apply changes to dockerFile
-        public void FillTemplate(String localRepo, String template, String dest, String dockerFile, List<String> newLines, List<int> lineNumbers, bool force)
+        public void FillTemplate(String dockerFile, List<String> newLines, List<int> lineNumbers)
         {
-            if (force)
-            {
-                Delete(dest);
-            }
-
-            if (Directory.Exists(dest))
-            {
-                //_log.Info(dest + " already exist");
-                return;
-            }
-
-            //_log.Info("deep copying");
-            // copy template to node_version
-            DirectoryInfo source = new DirectoryInfo(template);
-            DirectoryInfo target = new DirectoryInfo(dest);
-            DeepCopy(source, target);
-
             // edit dockerfile
             //_log.Info("editing dockerfile");
             for (int i = 0; i < newLines.Count; i++) {

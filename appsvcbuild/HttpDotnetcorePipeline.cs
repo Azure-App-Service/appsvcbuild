@@ -61,26 +61,29 @@ namespace appsvcbuild
             LogInfo("HttpDotnetcorePipeline request received");
 
             String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            List<BuildRequest> buildRequests = data?.buildRequests.ToObject<List<BuildRequest>>();
-            _pipelineUtils.processAddDefaults(buildRequests);
+            List<BuildRequest> buildRequests = JsonConvert.DeserializeObject<List<BuildRequest>>(requestBody);
+            foreach(BuildRequest br in buildRequests)
+            {
+                br.processAddDefaults();
+            }
 
             if (buildRequests == null)
             {
                 LogInfo("Failed: missing parameters `newTags` in body");
-                await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
+                //await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
                 return new BadRequestObjectResult("Failed: missing parameters `newTags` in body");
             }
             else if (buildRequests.Count == 0)
             {
                 LogInfo("no new dotnetcore tags found");
-                await _mailUtils.SendSuccessMail(new List<string> { "fix me later" }, GetLog());
+                //await _mailUtils.SendSuccessMail(new List<string> { "fix me later" }, GetLog());
                 return (ActionResult)new OkObjectResult($"no new dotnetcore tags found");
             }
             else
             {
                 try
                 {
+                    _mailUtils._buildRequest = buildRequests[0];
                     LogInfo($"HttpDotnetcorePipeline executed at: { DateTime.Now }");
                     LogInfo(String.Format("new dotnetcore tags found {0}", String.Join(", ", buildRequests)));
                 
@@ -191,13 +194,10 @@ namespace appsvcbuild
                     return version;
                 case "1.1":
                     return version;
-
                 case "2.0":
                     return version;
-
                 case "2.1":
                     return version;
-
                 case "2.2":
                     return version;
                 default:
@@ -220,7 +220,7 @@ namespace appsvcbuild
 
             _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.Branch);
             _githubUtils.CreateDir(localOutputRepoPath);
-            if (await _githubUtils.RepoExistsAsync(br.OutputRepoName))
+            if (await _githubUtils.RepoExistsAsync(br.OutputRepoOrgName, br.OutputRepoName))
             {
                 _githubUtils.Clone(
                     br.OutputRepoURL,
@@ -229,23 +229,23 @@ namespace appsvcbuild
             }
             else
             {
-                await _githubUtils.InitGithubAsync(br.OutputRepoName);
+                await _githubUtils.InitGithubAsync(br.OutputRepoOrgName, br.OutputRepoName);
                 _githubUtils.Init(localOutputRepoPath);
-                _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoName);
+                _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoOrgName, br.OutputRepoName);
             }
 
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
                 localOutputRepoPath,
                 false);
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\src\\{1}", localTemplateRepoPath, getZip(br.Version)),
+                localOutputRepoPath,
+                false);
             _githubUtils.CopyFile(
                 String.Format("{0}\\src\\{1}\\bin.zip", localTemplateRepoPath, getZip(br.Version)),
                 String.Format("{0}\\bin.zip", localOutputRepoPath),
                 true);
-            _githubUtils.DeepCopy(
-                String.Format("{0}\\src\\{1}\\src", localTemplateRepoPath, getZip(br.Version)),
-                String.Format("{0}\\src", localOutputRepoPath),
-                false);
 
             _githubUtils.FillTemplate(
                 String.Format("{0}\\DockerFile", localOutputRepoPath),

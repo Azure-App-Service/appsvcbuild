@@ -42,11 +42,11 @@ namespace appsvcbuild
             _gitToken = gitToken;
         }
 
-        public async Task<bool> RepoExistsAsync(String repoName)
+        public async Task<bool> RepoExistsAsync(String orgName, String repoName)
         {
             HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
-            String url = String.Format("https://api.github.com/repos/blessedimagepipeline/{0}", repoName);
+            String url = String.Format("https://api.github.com/repos/{0}/{1}", orgName, repoName);
             
             HttpResponseMessage response = await client.GetAsync(url);
             
@@ -58,25 +58,25 @@ namespace appsvcbuild
             return true;
         }
 
-        public async Task<Boolean> InitGithubAsync(String name)
+        public async Task<Boolean> InitGithubAsync(String orgName, String repoName)
         {
             HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
-            String url = String.Format("https://api.github.com/orgs/blessedimagepipeline/repos?access_token={0}", _gitToken);
-            String body = "{ \"name\": " + JsonConvert.SerializeObject(name) + " }";
+            String url = String.Format("https://api.github.com/orgs/{0}/repos?access_token={1}", orgName, _gitToken);
+            String body = "{ \"name\": " + JsonConvert.SerializeObject(repoName) + " }";
 
             HttpResponseMessage response = await client.PostAsync(url, new StringContent(body));
             String result = await response.Content.ReadAsStringAsync();
 
             if (response.StatusCode == HttpStatusCode.Created)
             {
-                _log.LogInformation(String.Format("created repo {0}", name));
+                _log.LogInformation(String.Format("created repo {0}/{1}", orgName, repoName));
             }
             else
             {
                 //TODO add retyry logic
-                //throw new Exception(String.Format("unable to create github repo {0}", name));
-                _log.LogInformation(String.Format("unable to create github repo {0}", name));
+                //throw new Exception(String.Format("unable to create github repo {0}/{1}", orgName, repoName));
+                _log.LogInformation(String.Format("unable to create github  repo {0}/{1}", orgName, repoName));
             }
             return true;    //return when done
         }
@@ -86,10 +86,10 @@ namespace appsvcbuild
             Repository.Init(dir);
         }
 
-        public void AddRemote(String dir, String repoName)
+        public void AddRemote(String dir, String orgName, String repoName)
         {
             Repository repo = new Repository(dir);
-            Remote remote = repo.Network.Remotes.Add("origin", String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName));
+            Remote remote = repo.Network.Remotes.Add("origin", String.Format("https://github.com/{0}/{1}.git", orgName, repoName));
             repo.Branches.Update(repo.Head, b => b.Remote = remote.Name, b => b.UpstreamBranch = repo.Head.CanonicalName);
         }
 

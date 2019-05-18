@@ -61,26 +61,29 @@ namespace appsvcbuild
             LogInfo("HttpPythonPipeline request received");
 
             String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            List<BuildRequest> buildRequests = data?.buildRequests.ToObject<List<BuildRequest>>();
-            _pipelineUtils.processAddDefaults(buildRequests);
+            List<BuildRequest> buildRequests = JsonConvert.DeserializeObject<List<BuildRequest>>(requestBody);
+            foreach (BuildRequest br in buildRequests)
+            {
+                br.processAddDefaults();
+            }
 
             if (buildRequests == null)
             {
                 LogInfo("Failed: missing parameters `newTags` in body");
-                await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
+                //await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
                 return new BadRequestObjectResult("Failed: missing parameters `newTags` in body");
             }
             else if (buildRequests.Count == 0)
             {
                 LogInfo("no new python tags found");
-                await _mailUtils.SendSuccessMail(new List<string> { "fix me later" }, GetLog());
+                //await _mailUtils.SendSuccessMail(new List<string> { "fix me later" }, GetLog());
                 return (ActionResult)new OkObjectResult($"no new python tags found");
             }
             else
             {
                 try
                 {
+                    _mailUtils._buildRequest = buildRequests[0];
                     LogInfo($"HttpPythonPipeline executed at: { DateTime.Now }");
                     LogInfo(String.Format("new python tags found {0}", String.Join(", ", buildRequests)));
 
@@ -231,7 +234,7 @@ namespace appsvcbuild
                 new List<int> { 1 });
 
             _githubUtils.CreateDir(localOutputRepoPath);
-            if (await _githubUtils.RepoExistsAsync(br.OutputRepoName))
+            if (await _githubUtils.RepoExistsAsync(br.OutputRepoOrgName, br.OutputRepoName))
             {
                 _githubUtils.Clone(
                     br.OutputRepoURL,
@@ -240,9 +243,9 @@ namespace appsvcbuild
             }
             else
             {
-                await _githubUtils.InitGithubAsync(br.OutputRepoName);
+                await _githubUtils.InitGithubAsync(br.OutputRepoOrgName, br.OutputRepoName);
                 _githubUtils.Init(localOutputRepoPath);
-                _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoName);
+                _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoOrgName, br.OutputRepoName);
             }
 
             _githubUtils.DeepCopy(
@@ -273,7 +276,7 @@ namespace appsvcbuild
 
             _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.Branch);
             _githubUtils.CreateDir(localOutputRepoPath);
-            if (await _githubUtils.RepoExistsAsync(outputRepoName))
+            if (await _githubUtils.RepoExistsAsync("blessedimagepipeline", outputRepoName))
             {
                 _githubUtils.Clone(
                     String.Format("https://github.com/blessedimagepipeline/{0}.git", outputRepoName),
@@ -282,9 +285,9 @@ namespace appsvcbuild
             }
             else
             {
-                await _githubUtils.InitGithubAsync(outputRepoName);
+                await _githubUtils.InitGithubAsync("blessedimagepipeline", outputRepoName);
                 _githubUtils.Init(localOutputRepoPath);
-                _githubUtils.AddRemote(localOutputRepoPath, outputRepoName);
+                _githubUtils.AddRemote(localOutputRepoPath, "blessedimagepipeline", outputRepoName);
             }
 
             _githubUtils.DeepCopy(

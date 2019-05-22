@@ -38,7 +38,7 @@ using Microsoft.ApplicationInsights;
 
 namespace appsvcbuild
 {
-    public static class HttpDotnetcorePipeline
+    public static class HttpKuduPipeline
     {
         private static ILogger _log;
         private static SecretsUtils _secretsUtils;
@@ -49,20 +49,20 @@ namespace appsvcbuild
         private static StringBuilder _emailLog;
         private static TelemetryClient _telemetry;
 
-        [FunctionName("HttpDotnetcorePipeline")]
+        [FunctionName("HttpKuduPipeline")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
             _telemetry = new TelemetryClient();
-            _telemetry.TrackEvent("HttpDotnetcorePipeline started");
+            _telemetry.TrackEvent("HttpKuduPipeline started");
             await InitUtils(log);
 
-            LogInfo("HttpDotnetcorePipeline request received");
+            LogInfo("HttpKuduPipeline request received");
 
             String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             List<BuildRequest> buildRequests = JsonConvert.DeserializeObject<List<BuildRequest>>(requestBody);
-            foreach(BuildRequest br in buildRequests)
+            foreach (BuildRequest br in buildRequests)
             {
                 br.processAddDefaults();
             }
@@ -75,21 +75,21 @@ namespace appsvcbuild
             }
             else if (buildRequests.Count == 0)
             {
-                LogInfo("no new dotnetcore tags found");
-                //await _mailUtils.SendSuccessMail(new List<string> { "fix me later" }, GetLog());
-                return (ActionResult)new OkObjectResult($"no new dotnetcore tags found");
+                LogInfo("no new kudu tags found");
+                //await _mailUtils.SendSuccessMail(new List<string>{"fix me later"}, GetLog());
+                return (ActionResult)new OkObjectResult($"no new kudu tags found");
             }
             else
             {
                 try
                 {
                     _mailUtils._buildRequest = buildRequests[0];
-                    LogInfo($"HttpDotnetcorePipeline executed at: { DateTime.Now }");
-                    LogInfo(String.Format("new dotnetcore tags found {0}", String.Join(", ", buildRequests)));
+                    LogInfo($"HttpKuduPipeline executed at: { DateTime.Now }");
+                    LogInfo(String.Format("new kudu tags found {0}", String.Join(", ", buildRequests.ToString())));
                 
                     List<String> newVersions = await MakePipeline(buildRequests, log);
                     await _mailUtils.SendSuccessMail(newVersions, GetLog());
-                    return (ActionResult)new OkObjectResult($"built new dotnetcore images: {String.Join(", ", newVersions)}");
+                    return (ActionResult)new OkObjectResult($"built new kudu images: {String.Join(", ", newVersions)}");
                 }
                 catch (Exception e)
                 {
@@ -117,7 +117,7 @@ namespace appsvcbuild
             _emailLog = new StringBuilder();
             _secretsUtils = new SecretsUtils();
             await _secretsUtils.GetSecrets();
-            _mailUtils = new MailUtils(new SendGridClient(_secretsUtils._sendGridApiKey), "Dotnetcore");
+            _mailUtils = new MailUtils(new SendGridClient(_secretsUtils._sendGridApiKey), "Kudu");
             _dockerhubUtils = new DockerhubUtils();
             _githubUtils = new GitHubUtils(_secretsUtils._gitToken);
             _pipelineUtils = new PipelineUtils(
@@ -133,7 +133,7 @@ namespace appsvcbuild
             _pipelineUtils._log = log;
         }
 
-        public static async Task<List<String>> MakePipeline(List<BuildRequest> buildRequests, ILogger log)
+        public static async Task<List<string>> MakePipeline(List<BuildRequest> buildRequests, ILogger log)
         {
             List<String> newVersions = new List<String>();
 
@@ -148,8 +148,8 @@ namespace appsvcbuild
                         tries--;
                         _mailUtils._version = br.Version;
                         await PushGithubAsync(br);
-                        await CreateDotnetcoreHostingStartPipeline(br);
-                        LogInfo(String.Format("dotnetcore {0} built", br.Version));
+                        await CreateKuduHostingStartPipeline(br);
+                        LogInfo(String.Format("kudu {0} built", br.Version));
                         break;
                     }
                     catch (Exception e)
@@ -157,7 +157,7 @@ namespace appsvcbuild
                         LogInfo(e.ToString());
                         if (tries <= 0)
                         {
-                            LogInfo(String.Format("dotnetcore {0} failed", br.Version));
+                            LogInfo(String.Format("kudu {0} failed", br.Version));
                             throw e;
                         }
                         LogInfo("trying again");
@@ -167,46 +167,21 @@ namespace appsvcbuild
             return newVersions;
         }
 
-        public static async Task<Boolean> CreateDotnetcoreHostingStartPipeline(BuildRequest br)
+        public static async Task<Boolean> CreateKuduHostingStartPipeline(BuildRequest br)
         {
-            String dotnetcoreVersionDash = br.Version.Replace(".", "-");
-            String taskName = String.Format("appsvcbuild-dotnetcore-hostingstart-{0}-task", dotnetcoreVersionDash);
-            String planName = "appsvcbuild-dotnetcore-plan";
+            String kuduVersionDash = br.Version.Replace(".", "-");
+            String taskName = String.Format("appsvcbuild-kudu-hostingstart-{0}-task", kuduVersionDash);
 
-            LogInfo("creating acr task for dotnetcore hostingstart " + br.Version);
+            LogInfo("creating acr task for kudu hostingstart " + br.Version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, _secretsUtils._gitToken, br.OutputImageName);
-            LogInfo("done creating acr task for dotnetcore hostingstart " + br.Version);
-
-            LogInfo("creating webapp for dotnetcore hostingstart " + br.Version);
-            String cdUrl = _pipelineUtils.CreateWebapp(br.Version, acrPassword, br.WebAppName, br.OutputImageName, planName);
-            LogInfo("done creating webapp for dotnetcore hostingstart " + br.Version);
+            LogInfo("done creating acr task for kudu hostingstart " + br.Version);
 
             return true;
         }
 
-        private static String getZip(String version)
-        {
-            switch (version) {
-                case "1.0":
-                    return version;
-                case "1.1":
-                    return version;
-                case "2.0":
-                    return version;
-                case "2.1":
-                    return version;
-                case "2.2":
-                    return version;
-                default:
-                    LogInfo("unexpected version: " + version);
-                    throw new Exception("unexpected version: " + version);
-                }
-
-        }
-
         private static async Task<Boolean> PushGithubAsync(BuildRequest br)
         {
-            LogInfo("creating github files for dotnetcore " + br.Version);
+            _log.LogInformation("creating github files for kudu " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
             _githubUtils.CreateDir(parent);
@@ -234,26 +209,12 @@ namespace appsvcbuild
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
                 localOutputRepoPath,
                 false);
-            _githubUtils.DeepCopy(
-                String.Format("{0}\\src\\{1}", localTemplateRepoPath, getZip(br.Version)),
-                localOutputRepoPath,
-                false);
-            _githubUtils.CopyFile(
-                String.Format("{0}\\src\\{1}\\bin.zip", localTemplateRepoPath, getZip(br.Version)),
-                String.Format("{0}\\bin.zip", localOutputRepoPath),
-                true);
-
-            _githubUtils.FillTemplate(
-                String.Format("{0}\\DockerFile", localOutputRepoPath),
-                new List<String> { String.Format("FROM {0}", br.BaseImageName) },
-                new List<int> { 1 }
-            );
 
             _githubUtils.Stage(localOutputRepoPath, "*");
-            _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add dotnetcore {0}", br.Version));
+            _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add kudu {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for dotnetcore " + br.Version);
 
+            _log.LogInformation("done creating github files for kudu " + br.Version);
             return true;
         }
     }

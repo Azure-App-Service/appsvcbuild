@@ -214,7 +214,7 @@ namespace appsvcbuild
             Commands.Stage(new Repository(localRepo), path);
         }
 
-        public void CommitAndPush(String gitPath, String message)
+        public void CommitAndPush(String gitPath, String branch, String message)
         {
             try
             {
@@ -246,7 +246,7 @@ namespace appsvcbuild
                                 Username = _gitToken,
                                 Password = String.Empty
                             });
-                    repo.Network.Push(repo.Branches["master"], options);
+                    repo.Network.Push(repo.Branches[branch], options);
                 }
             }
             catch (Exception e)

@@ -24,11 +24,11 @@ namespace appsvcbuild
         [JsonProperty("templateName")]
         public string TemplateName;
 
-        [JsonProperty("branch")]
-        public string Branch;
+        [JsonProperty("templateRepoBranchName")]
+        public string TemplateRepoBranchName;
 
-        [JsonProperty("baseImage")]
-        public string BaseImage;
+        [JsonProperty("baseImageName")]
+        public string BaseImageName;
 
         [JsonProperty("outputRepoURL")]
         public string OutputRepoURL;
@@ -39,14 +39,68 @@ namespace appsvcbuild
         [JsonProperty("outputRepoOrgName")]
         public string OutputRepoOrgName;
 
-        [JsonProperty("outputImageName")]
-        public string OutputImage;
+        [JsonProperty("outputRepoBranchName")]
+        public string OutputRepoBranchName;
 
-        [JsonProperty("testWebAppName")]
-        public string TestWebAppName;
+        [JsonProperty("outputImageName")]
+        public string OutputImageName;
+
+        [JsonProperty("webAppName")]
+        public string WebAppName;
+
+        [JsonProperty("rubyBaseOutputRepoURL")]
+        public string RubyBaseOutputRepoURL;
+
+        [JsonProperty("rubyBaseOutputRepoName")]
+        public string RubyBaseOutputRepoName;
+
+        [JsonProperty("rubyBaseOutputRepoOrgName")]
+        public string RubyBaseOutputRepoOrgName;
+
+        [JsonProperty("rubyBaseOutputRepoBranchName")]
+        public string RubyBaseOutputRepoBranchName;
+
+        [JsonProperty("rubyBaseOutputImageName")]
+        public string RubyBaseOutputImageName;
 
         [JsonProperty("email")]
         public string Email;
+
+        [JsonProperty("testTemplateRepoURL")]
+        public string TestTemplateRepoURL;
+
+        [JsonProperty("testTemplateRepoOrgName")]
+        public string TestTemplateRepoOrgName;
+
+        [JsonProperty("testTemplateRepoName")]
+        public string TestTemplateRepoName;
+
+        [JsonProperty("tesTemplateName")]
+        public string TestTemplateName;
+
+        [JsonProperty("testTemplateRepoBranchName")]
+        public string TestTemplateRepoBranchName;
+
+        [JsonProperty("testBaseImageName")]
+        public string TestBaseImageName;
+
+        [JsonProperty("testOutputRepoURL")]
+        public string TestOutputRepoURL;
+
+        [JsonProperty("testOutputRepoName")]
+        public string TestOutputRepoName;
+
+        [JsonProperty("testOutputRepoOrgName")]
+        public string TestOutputRepoOrgName;
+
+        [JsonProperty("testOutputRepoBranchName")]
+        public string TestOutputRepoBranchName;
+
+        [JsonProperty("testOutputImageName")]
+        public string TestOutputImageName;
+
+        [JsonProperty("testWebAppName")]
+        public string TestWebAppName;
 
         private static String getDotnetcoreTemplate(String version)
         {
@@ -113,6 +167,40 @@ namespace appsvcbuild
             {
                 return getRubyTemplate(version);
             }
+            if (stack == "kudu")
+            {
+                return "kudu";
+            }
+
+            throw new Exception(String.Format("unexpected stack: {0}", stack));
+        }
+
+        private static String getTestTemplate(String stack, String version)
+        {
+            if (stack == "dotnetcore")
+            {
+                return "TestAppTemplate";
+            }
+            if (stack == "node")
+            {
+                return "nodeAppTemplate";
+            }
+            if (stack == "php")
+            {
+                return "template-app-apache";
+            }
+            if (stack == "python")
+            {
+                return "template-app";
+            }
+            if (stack == "ruby")
+            {
+                return "TestAppTemplate";
+            }
+            if (stack == "kudu")
+            {
+                return "kudu";
+            }
 
             throw new Exception(String.Format("unexpected stack: {0}", stack));
         }
@@ -124,9 +212,12 @@ namespace appsvcbuild
                 throw new Exception("missing stack");
             }
             Stack = Stack.ToLower();
-            if (Version == null)
+            if (Version == null && !Stack.Equals("kudu"))
             {
                 throw new Exception("missing version");
+            } else if(Stack.Equals("kudu"))
+            {
+                Version = "0";
             }
             if (TemplateRepoURL == null)
             {
@@ -146,13 +237,13 @@ namespace appsvcbuild
             {
                 TemplateName = getTemplate(Stack, Version);
             }
-            if (Branch == null)
+            if (TemplateRepoBranchName == null)
             {
-                Branch = "master";
+                TemplateRepoBranchName = "master";
             }
-            if (BaseImage == null)
+            if (BaseImageName == null)
             {
-                BaseImage = String.Format("mcr.microsoft.com/oryx/{0}-{1}:latest", Stack, Version);
+                BaseImageName = String.Format("mcr.microsoft.com/oryx/{0}-{1}:latest", Stack, Version);
             }
             if (OutputRepoURL == null)
             {
@@ -168,17 +259,93 @@ namespace appsvcbuild
                 String[] splitted = OutputRepoURL.Split('/');
                 OutputRepoOrgName = splitted[splitted.Length - 2];
             }
-            if (OutputImage == null)
+            if (OutputRepoBranchName == null)
             {
-                OutputImage = String.Format("{0}:{1}", Stack, Version);
+                OutputRepoBranchName = "master";
             }
-            if (TestWebAppName == null)
+            if (OutputImageName == null)
             {
-                TestWebAppName = String.Format("appsvcbuild-{0}-hostingstart-{1}-site", Stack, Version.Replace(".", "-"));
+                OutputImageName = String.Format("{0}:{1}", Stack, Version);
+            }
+            if (WebAppName == null)
+            {
+                WebAppName = String.Format("appsvcbuild-{0}-hostingstart-{1}-site", Stack, Version.Replace(".", "-"));
             }
             if (Email == null)
             {
                 Email = "patle@microsoft.com";
+            }
+            if (TestTemplateRepoURL == null)
+            {
+                TestTemplateRepoURL = TemplateRepoURL;
+            }
+            if (TestTemplateRepoName == null)
+            {
+                TestTemplateRepoName = TemplateRepoName;
+            }
+            if (TestTemplateRepoOrgName == null)
+            {
+                TestTemplateRepoOrgName = TemplateRepoOrgName;
+            }
+            if (TestTemplateName == null)
+            {
+                TestTemplateName = getTestTemplate(Stack, Version);
+            }
+            if (TestTemplateRepoBranchName == null)
+            {
+                TestTemplateRepoBranchName = TemplateRepoBranchName;
+            }
+            if (TestBaseImageName == null)
+            {
+                TestBaseImageName = OutputImageName;
+            }
+            if (TestOutputRepoURL == null)
+            {
+                TestOutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-app-{1}.git", Stack, Version);
+            }
+            if (TestOutputRepoName == null)
+            {
+                String[] splitted = TestOutputRepoURL.Split('/');
+                TestOutputRepoName = splitted[splitted.Length - 1].Replace(".git", "");
+            }
+            if (TestOutputRepoOrgName == null)
+            {
+                String[] splitted = TestOutputRepoURL.Split('/');
+                TestOutputRepoOrgName = splitted[splitted.Length - 2];
+            }
+            if (TestOutputRepoBranchName == null)
+            {
+                TestOutputRepoBranchName = "master";
+            }
+            if (TestOutputImageName == null)
+            {
+                TestOutputImageName = String.Format("{0}app:{1}", Stack, Version);
+            }
+            if (TestWebAppName == null)
+            {
+                TestWebAppName = String.Format("appsvcbuild-{0}-app-{1}-site", Stack, Version.Replace(".", "-"));
+            }
+            if (RubyBaseOutputRepoURL == null)
+            {
+                RubyBaseOutputRepoURL = String.Format("https://github.com/blessedimagepipeline/rubybase-{0}.git", Version);
+            }
+            if (RubyBaseOutputRepoName == null)
+            {
+                String[] splitted = RubyBaseOutputRepoURL.Split('/');
+                RubyBaseOutputRepoName = splitted[splitted.Length - 1].Replace(".git", "");
+            }
+            if (RubyBaseOutputRepoOrgName == null)
+            {
+                String[] splitted = RubyBaseOutputRepoURL.Split('/');
+                RubyBaseOutputRepoOrgName = splitted[splitted.Length - 2];
+            }
+            if (RubyBaseOutputRepoBranchName == null)
+            {
+                RubyBaseOutputRepoBranchName = "master";
+            }
+            if (RubyBaseOutputImageName == null)
+            {
+                RubyBaseOutputImageName = String.Format("rubybase:{0}", Version);
             }
         }
     }

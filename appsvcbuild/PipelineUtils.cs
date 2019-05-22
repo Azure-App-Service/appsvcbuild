@@ -83,7 +83,7 @@ namespace appsvcbuild
                            noCache: true),
                        name: taskName,
                        status: Microsoft.Azure.Management.ContainerRegistry.Models.TaskStatus.Enabled,
-                       timeout: 3600,
+                       timeout: 3 * 60 * 60, // 3 hours
                        /*trigger: new TriggerProperties(
                            sourceTriggers: new List<SourceTrigger> {
                                new SourceTrigger(

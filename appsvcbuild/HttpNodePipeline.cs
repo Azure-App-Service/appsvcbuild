@@ -49,10 +49,7 @@ namespace appsvcbuild
         private static StringBuilder _emailLog;
         private static TelemetryClient _telemetry;
 
-        [FunctionName("HttpNodePipeline")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
-            ILogger log)
+        public static async Task<String> Run(BuildRequest br, ILogger log)
         {
             _telemetry = new TelemetryClient();
             _telemetry.TrackEvent("HttpNodePipeline started");
@@ -60,44 +57,33 @@ namespace appsvcbuild
 
             LogInfo("HttpNodePipeline request received");
 
-            String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            List<BuildRequest> buildRequests = JsonConvert.DeserializeObject<List<BuildRequest>>(requestBody);
-            foreach (BuildRequest br in buildRequests)
+            try
             {
-                br.processAddDefaults();
-            }
+                _mailUtils._buildRequest = br;
+                LogInfo($"HttpNodePipeline executed at: { DateTime.Now }");
+                LogInfo(String.Format("new Node BuildRequest found {0}", br.ToString()));
 
-            if (buildRequests == null)
-            {
-                LogInfo("Failed: missing parameters `newTags` in body");
-                //await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
-                return new BadRequestObjectResult("Failed: missing parameters `newTags` in body");
+                Boolean success = await MakePipeline(br, log);
+                await _mailUtils.SendSuccessMail(new List<String> { br.Version }, GetLog());
+                String successMsg =
+                    $@"{{
+                        ""status"": ""success"",
+                        ""image"": ""appsvcbuildacr.azurecr.io/{br.OutputImageName}"",
+                        ""webApp"": ""https://{br.WebAppName}.azurewebsites.net""
+                    }}";
+                return successMsg;
             }
-            else if (buildRequests.Count == 0)
+            catch (Exception e)
             {
-                LogInfo("no new node tags found");
-                //await _mailUtils.SendSuccessMail(new List<string>{"fix me later"}, GetLog());
-                return (ActionResult)new OkObjectResult($"no new node tags found");
-            }
-            else
-            {
-                try
-                {
-                    _mailUtils._buildRequest = buildRequests[0];
-                    LogInfo($"HttpNodePipeline executed at: { DateTime.Now }");
-                    LogInfo(String.Format("new node tags found {0}", String.Join(", ", buildRequests.ToString())));
-                
-                    List<String> newVersions = await MakePipeline(buildRequests, log);
-                    await _mailUtils.SendSuccessMail(newVersions, GetLog());
-                    return (ActionResult)new OkObjectResult($"built new node images: {String.Join(", ", newVersions)}");
-                }
-                catch (Exception e)
-                {
-                    LogInfo(e.ToString());
-                    _telemetry.TrackException(e);
-                    await _mailUtils.SendFailureMail(e.ToString(), GetLog());
-                    return new InternalServerErrorResult();
-                }
+                LogInfo(e.ToString());
+                _telemetry.TrackException(e);
+                await _mailUtils.SendFailureMail(e.ToString(), GetLog());
+                String failureMsg =
+                    $@"{{
+                        ""status"": ""failure"",
+                        ""error"": ""{e.ToString()}""
+                    }}";
+                return failureMsg;
             }
         }
 
@@ -133,37 +119,31 @@ namespace appsvcbuild
             _pipelineUtils._log = log;
         }
 
-        public static async Task<List<string>> MakePipeline(List<BuildRequest> buildRequests, ILogger log)
+        public static async Task<Boolean> MakePipeline(BuildRequest br, ILogger log)
         {
-            List<String> newVersions = new List<String>();
-
-            foreach (BuildRequest br in buildRequests)
+            int tries = 3;
+            while (true)
             {
-                newVersions.Add(br.Version);
-                int tries = 3;
-                while (true)
+                try
                 {
-                    try
+                    tries--;
+                    _mailUtils._version = br.Version;
+                    LogInfo("creating pipeline for Node " + br.Version);
+                    Boolean b = await CreateNodePipeline(br);
+                    LogInfo(String.Format("Node {0} built", br.Version));
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    LogInfo(e.ToString());
+                    if (tries <= 0)
                     {
-                        tries--;
-                        _mailUtils._version = br.Version;
-                        Boolean b = await CreateNodePipeline(br);
-                        LogInfo(String.Format("node {0} built", br.Version));
-                        break;
+                        LogInfo(String.Format("Node {0} failed", br.Version));
+                        throw e;
                     }
-                    catch (Exception e)
-                    {
-                        LogInfo(e.ToString());
-                        if (tries <= 0)
-                        {
-                            LogInfo(String.Format("node {0} failed", br.Version));
-                            throw e;
-                        }
-                        LogInfo("trying again");
-                    }
+                    LogInfo("trying again");
                 }
             }
-            return newVersions;
         }
 
         public static async Task<Boolean> CreateNodePipeline(BuildRequest br)
@@ -213,9 +193,9 @@ namespace appsvcbuild
 
         private static async Task<Boolean> PushGithubAsync(BuildRequest br)
         {
-            _log.LogInformation("creating github files for node " + br.Version);
+            LogInfo("creating github files for node " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
@@ -250,16 +230,16 @@ namespace appsvcbuild
             _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add node {0}", br.Version));
             //_githubUtils.CleanUp(parent);
 
-            _log.LogInformation("done creating github files for node " + br.Version);
+            LogInfo("done creating github files for node " + br.Version);
             return true;
         }
 
         private static async Task<Boolean> PushGithubAppAsync(BuildRequest br)
         {
 
-            _log.LogInformation("creating github files for node app " + br.Version);
+            LogInfo("creating github files for node app " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TestTemplateRepoName);
@@ -293,7 +273,7 @@ namespace appsvcbuild
             _githubUtils.Stage(localOutputRepoPath, "*");
             _githubUtils.CommitAndPush(localOutputRepoPath, br.TestOutputRepoBranchName, String.Format("[appsvcbuild] Add node {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            _log.LogInformation("done creating github files for node app " + br.Version);
+            LogInfo("done creating github files for node app " + br.Version);
             return true;
         }
     }

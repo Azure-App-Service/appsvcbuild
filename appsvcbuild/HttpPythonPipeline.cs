@@ -49,10 +49,7 @@ namespace appsvcbuild
         private static StringBuilder _emailLog;
         private static TelemetryClient _telemetry;
 
-        [FunctionName("HttpPythonPipeline")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
-            ILogger log)
+        public static async Task<String> Run(BuildRequest br, ILogger log)
         {
             _telemetry = new TelemetryClient();
             _telemetry.TrackEvent("HttpPythonPipeline started");
@@ -60,44 +57,33 @@ namespace appsvcbuild
 
             LogInfo("HttpPythonPipeline request received");
 
-            String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            List<BuildRequest> buildRequests = JsonConvert.DeserializeObject<List<BuildRequest>>(requestBody);
-            foreach (BuildRequest br in buildRequests)
+            try
             {
-                br.processAddDefaults();
-            }
+                _mailUtils._buildRequest = br;
+                LogInfo($"HttpPythonPipeline executed at: { DateTime.Now }");
+                LogInfo(String.Format("new Python BuildRequest found {0}", br.ToString()));
 
-            if (buildRequests == null)
-            {
-                LogInfo("Failed: missing parameters `newTags` in body");
-                //await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
-                return new BadRequestObjectResult("Failed: missing parameters `newTags` in body");
+                Boolean success = await MakePipeline(br, log);
+                await _mailUtils.SendSuccessMail(new List<String> { br.Version }, GetLog());
+                String successMsg =
+                    $@"{{
+                        ""status"": ""success"",
+                        ""image"": ""appsvcbuildacr.azurecr.io/{br.OutputImageName}"",
+                        ""webApp"": ""https://{br.WebAppName}.azurewebsites.net""
+                    }}";
+                return successMsg;
             }
-            else if (buildRequests.Count == 0)
+            catch (Exception e)
             {
-                LogInfo("no new python tags found");
-                //await _mailUtils.SendSuccessMail(new List<string> { "fix me later" }, GetLog());
-                return (ActionResult)new OkObjectResult($"no new python tags found");
-            }
-            else
-            {
-                try
-                {
-                    _mailUtils._buildRequest = buildRequests[0];
-                    LogInfo($"HttpPythonPipeline executed at: { DateTime.Now }");
-                    LogInfo(String.Format("new python tags found {0}", String.Join(", ", buildRequests)));
-
-                    List<String> newVersions = await MakePipeline(buildRequests, log);
-                    await _mailUtils.SendSuccessMail(newVersions, GetLog());
-                    return (ActionResult)new OkObjectResult($"built new python images: {String.Join(", ", newVersions)}");
-                }
-                catch (Exception e)
-                {
-                    LogInfo(e.ToString());
-                    _telemetry.TrackException(e);
-                    await _mailUtils.SendFailureMail(e.ToString(), GetLog());
-                    return new InternalServerErrorResult();
-                }
+                LogInfo(e.ToString());
+                _telemetry.TrackException(e);
+                await _mailUtils.SendFailureMail(e.ToString(), GetLog());
+                String failureMsg =
+                    $@"{{
+                        ""status"": ""failure"",
+                        ""error"": ""{e.ToString()}""
+                    }}";
+                return failureMsg;
             }
         }
 
@@ -133,42 +119,36 @@ namespace appsvcbuild
             _pipelineUtils._log = log;
         }
 
-        public static async Task<List<string>> MakePipeline(List<BuildRequest> buildRequests, ILogger log)
+        public static async Task<Boolean> MakePipeline(BuildRequest br, ILogger log)
         {
-            List<String> newVersions = new List<String>();
-
-            foreach (BuildRequest br in buildRequests)
+            int tries = 3;
+            while (true)
             {
-                newVersions.Add(br.Version);
-                int tries = 3;
+                try
                 {
-                    try
+                    tries--;
+                    _mailUtils._version = br.Version;
+                    LogInfo("Creating pipeline for Python " + br.Version);
+                    await PushGithubAsync(br);
+                    await CreatePythonHostingStartPipeline(br);
+                    await PushGithubAppAsync(br);
+                    await CreatePythonAppPipeline(br);
+                    LogInfo(String.Format("Python {0} built", br.Version));
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    LogInfo(e.ToString());
+                    if (tries <= 0)
                     {
-                        tries--;
-                        _mailUtils._version = br.Version;
-                        await PushGithubAsync(br);
-                        await CreatePythonHostingStartPipeline(br);
-                        await PushGithubAppAsync(br);
-                        await CreatePythonAppPipeline(br);
-
-                        LogInfo(String.Format("python {0} built", br.Version));
-                        break;
+                        LogInfo(String.Format("Python {0} failed", br.Version));
+                        throw e;
                     }
-                    catch (Exception e)
-                    {
-                        LogInfo(e.ToString());
-                        if (tries <= 0)
-                        {
-                            LogInfo(String.Format("python {0} failed", br.Version));
-                            throw e;
-                        }
-                        LogInfo("trying again");
-                    }
+                    LogInfo("trying again");
                 }
             }
-            return newVersions;
         }
-        
+
         public static async Task<Boolean> CreatePythonHostingStartPipeline(BuildRequest br)
         {
             LogInfo("creating pipeling for python hostingstart " + br.Version);
@@ -190,28 +170,28 @@ namespace appsvcbuild
 
         public static async Task<Boolean> CreatePythonAppPipeline(BuildRequest br)
         {
-            LogInfo("creating pipeling for python app " + br.Version);
+            LogInfo("Creating pipeline for Python app " + br.Version);
 
             String pythonVersionDash = br.Version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-python-app-{0}-task", pythonVersionDash);
             String planName = "appsvcbuild-python-app-plan";
 
-            LogInfo("creating acr task for python app" + br.Version);
+            LogInfo("Creating acr task for Python app" + br.Version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, _secretsUtils._gitToken, br.TestOutputImageName);
             LogInfo("done creating acr task for python app" + br.Version);
 
-            LogInfo("creating webapp for python app" + br.Version);
+            LogInfo("Creating webapp for Python app" + br.Version);
             String cdUrl = _pipelineUtils.CreateWebapp(br.Version, acrPassword, br.TestWebAppName, br.TestOutputImageName, planName);
-            LogInfo("done creating webapp for python app" + br.Version);
+            LogInfo("Done creating webapp for Python app" + br.Version);
 
             return true;
         }
 
         private static async Task<Boolean> PushGithubAsync(BuildRequest br)
         {
-            LogInfo("creating github files for python " + br.Version);
+            LogInfo("Creating github files for Python " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
@@ -244,16 +224,16 @@ namespace appsvcbuild
             _githubUtils.Stage(localOutputRepoPath, "*");
             _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add python {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for python " + br.Version);
+            LogInfo("Done creating github files for Python " + br.Version);
 
             return true;
         }
 
         private static async Task<Boolean> PushGithubAppAsync(BuildRequest br)
         {
-            LogInfo("creating github files for python app" + br.Version);
+            LogInfo("Creating github files for Python app" + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TestTemplateRepoName);
@@ -287,7 +267,7 @@ namespace appsvcbuild
             _githubUtils.Stage(localOutputRepoPath, "*");
             _githubUtils.CommitAndPush(localOutputRepoPath, br.TestOutputRepoBranchName, String.Format("[appsvcbuild] Add python {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for python app" + br.Version);
+            LogInfo("Done creating github files for Python app" + br.Version);
 
             return true;
         }

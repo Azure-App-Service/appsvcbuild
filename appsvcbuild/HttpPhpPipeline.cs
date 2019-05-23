@@ -49,10 +49,7 @@ namespace appsvcbuild
         private static StringBuilder _emailLog;
         private static TelemetryClient _telemetry;
 
-        [FunctionName("HttpPhpPipeline")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
-            ILogger log)
+        public static async Task<String> Run(BuildRequest br, ILogger log)
         {
             _telemetry = new TelemetryClient();
             _telemetry.TrackEvent("HttpPhpPipeline started");
@@ -60,44 +57,33 @@ namespace appsvcbuild
 
             LogInfo("HttpPhpPipeline request received");
 
-            String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            List<BuildRequest> buildRequests = JsonConvert.DeserializeObject<List<BuildRequest>>(requestBody);
-            foreach (BuildRequest br in buildRequests)
+            try
             {
-                br.processAddDefaults();
-            }
+                _mailUtils._buildRequest = br;
+                LogInfo($"HttpPhpPipeline executed at: { DateTime.Now }");
+                LogInfo(String.Format("new Php BuildRequest found {0}", br.ToString()));
 
-            if (buildRequests == null)
-            {
-                LogInfo("Failed: missing parameters `newTags` in body");
-                //await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
-                return new BadRequestObjectResult("Failed: missing parameters `newTags` in body");
+                Boolean success = await MakePipeline(br, log);
+                await _mailUtils.SendSuccessMail(new List<String> { br.Version }, GetLog());
+                String successMsg =
+                    $@"{{
+                        ""status"": ""success"",
+                        ""image"": ""appsvcbuildacr.azurecr.io/{br.OutputImageName}"",
+                        ""webApp"": ""https://{br.WebAppName}.azurewebsites.net""
+                    }}";
+                return successMsg;
             }
-            else if (buildRequests.Count == 0)
+            catch (Exception e)
             {
-                LogInfo("no new kudu tags found");
-                //await _mailUtils.SendSuccessMail(new List<string> { "fix me later" }, GetLog());
-                return (ActionResult)new OkObjectResult($"no new kudu tags found");
-            }
-            else
-            {
-                try
-                {
-                    _mailUtils._buildRequest = buildRequests[0];
-                    LogInfo($"HttpPhpPipeline executed at: { DateTime.Now }");
-                    LogInfo(String.Format("new php tags found {0}", String.Join(", ", buildRequests.ToString())));
-
-                    List<String> newVersions = await MakePipeline(buildRequests, log);
-                    await _mailUtils.SendSuccessMail(newVersions, GetLog());
-                    return (ActionResult)new OkObjectResult($"built new php images: {String.Join(", ", newVersions)}");
-                }
-                catch (Exception e)
-                {
-                    LogInfo(e.ToString());
-                    _telemetry.TrackException(e);
-                    await _mailUtils.SendFailureMail(e.ToString(), GetLog());
-                    return new InternalServerErrorResult();
-                }
+                LogInfo(e.ToString());
+                _telemetry.TrackException(e);
+                await _mailUtils.SendFailureMail(e.ToString(), GetLog());
+                String failureMsg =
+                    $@"{{
+                        ""status"": ""failure"",
+                        ""error"": ""{e.ToString()}""
+                    }}";
+                return failureMsg;
             }
         }
 
@@ -133,41 +119,34 @@ namespace appsvcbuild
             _pipelineUtils._log = log;
         }
 
-        public static async Task<List<string>> MakePipeline(List<BuildRequest> buildRequests, ILogger log)
+        public static async Task<Boolean> MakePipeline(BuildRequest br, ILogger log)
         {
-            List<String> newVersions = new List<String>();
-
-
-            foreach (BuildRequest br in buildRequests)
+            int tries = 3;
+            while (true)
             {
-                newVersions.Add(br.Version);
-                int tries = 3;
-                while (true)
+                try
                 {
-                    try
+                    tries--;
+                    _mailUtils._version = br.Version;
+                    LogInfo("Creating pipeline for Php " + br.Version);
+                    await PushGithubAsync(br);
+                    await CreatePhpHostingStartPipeline(br);
+                    await PushGithubAppAsync(br);
+                    await CreatePhpAppPipeline(br);
+                    LogInfo(String.Format("Php {0} built", br.Version));
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    LogInfo(e.ToString());
+                    if (tries <= 0)
                     {
-                        tries--;
-                        _mailUtils._version = br.Version;
-                        await PushGithubAsync(br);
-                        await CreatePhpHostingStartPipeline(br);
-                        await PushGithubAppAsync(br);
-                        await CreatePhpAppPipeline(br);
-                        LogInfo(String.Format("php {0} built", br.Version));
-                        break;
+                        LogInfo(String.Format("Php {0} failed", br.Version));
+                        throw e;
                     }
-                    catch (Exception e)
-                    {
-                        LogInfo(e.ToString());
-                        if (tries <= 0)
-                        {
-                            LogInfo(String.Format("php {0} failed", br.Version));
-                            throw e;
-                        }
-                        LogInfo("trying again");
-                    }
+                    LogInfo("trying again");
                 }
             }
-            return newVersions;
         }
 
         public static async Task<Boolean> CreatePhpHostingStartPipeline(BuildRequest br)
@@ -212,7 +191,7 @@ namespace appsvcbuild
         {
             LogInfo("creating github files for php " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
@@ -257,7 +236,7 @@ namespace appsvcbuild
 
             LogInfo("creating github files for php app " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TestTemplateRepoName);

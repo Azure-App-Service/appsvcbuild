@@ -13,8 +13,6 @@ using LibGit2Sharp.Handlers;
 using Microsoft.Azure.Management.Fluent;
 using Microsoft.Rest.Azure;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
-using Microsoft.Azure.Management.ResourceManager.Fluent;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
 using Microsoft.Azure.Management.ResourceManager;
 using Microsoft.Azure.Management.Storage;
 using Microsoft.Azure.Management.ContainerRegistry;
@@ -29,6 +27,8 @@ using SendGrid;
 using SendGrid.Helpers.Mail;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using RestSharp;
+using NameValuePair = Microsoft.Azure.Management.WebSites.Models.NameValuePair;
 
 namespace appsvcbuild
 {
@@ -69,71 +69,61 @@ namespace appsvcbuild
         {
             //_log.Info("creating task: " + taskName);
 
+            RestClient client = new RestClient("https://dev.azure.com/patle/23b82bfb-5bab-4c97-8e1a-1ae8d771e222/_apis/build/builds?api-version=5.0");
+            var request = new RestRequest(Method.POST);
+            request.AddHeader("cache-control", "no-cache");
+            request.AddHeader("Authorization", "Basic cGF0bGU6dmtkbmszeG1kNGdlN3BuMmh0cG1ncm53YWlod3hxajdvcTd3Znlydm83YWxxbnJ5ZXc2cQ==");
+            request.AddHeader("Content-Type", "application/json");
+            String body =
+                $@"{{
+                    ""queue"": {{
+                        ""id"": 8
+                    }},
+                    ""definition"": {{
+                        ""id"": 2
+                    }},
+                    ""project"": {{
+                        ""id"": ""23b82bfb-5bab-4c97-8e1a-1ae8d771e222""
+                    }},
+                    ""sourceBranch"": ""master"",
+                    ""sourceVersion"": """",
+                    ""reason"": ""manual"",
+                    ""demands"": [],
+                    ""parameters"": ""{{
+                        \""gitURL\"":\""{gitPath}\"",
+                        \""imageTag\"":\""{imageName}\""
+                    }}""
+                }}";
+            request.AddParameter("undefined", body, ParameterType.RequestBody);
+            IRestResponse response = client.Execute(request);
 
-            Registry reg = _registryClient.Registries.Get(_rgName, _acrName);
+            var json = JsonConvert.DeserializeObject<dynamic>(response.Content.ToString());
+            String runId = json.id;
+            runId = runId.Replace("\"", "");
 
-            Microsoft.Azure.Management.ContainerRegistry.Models.Task task = new Microsoft.Azure.Management.ContainerRegistry.Models.Task(
-                       location: reg.Location,
-                       platform: new PlatformProperties { Architecture = Architecture.Amd64, Os = OS.Linux },
-                       step: new DockerBuildStep(
-                           dockerFilePath: "Dockerfile",
-                           contextPath: gitPath,
-                           imageNames: new List<string> { imageName },
-                           isPushEnabled: true,
-                           noCache: true),
-                       name: taskName,
-                       status: Microsoft.Azure.Management.ContainerRegistry.Models.TaskStatus.Enabled,
-                       timeout: 3 * 60 * 60, // 3 hours
-                       /*trigger: new TriggerProperties(
-                           sourceTriggers: new List<SourceTrigger> {
-                               new SourceTrigger(
-                                   sourceRepository: new SourceProperties(
-                                       sourceControlType: SourceControlType.Github,
-                                       repositoryUrl: gitPath,
-                                       branch: "master",
-                                       sourceControlAuthProperties: new AuthInfo(TokenType.PAT,
-                                            gitToken,
-                                            scope:"repo")),
-                                   sourceTriggerEvents: new List<string>{ SourceTriggerEvent.Commit },
-                                   name: "defaultSourceTriggerName",
-                                   status: TriggerStatus.Enabled) },
-                           baseImageTrigger: new BaseImageTrigger(
-                               BaseImageTriggerType.Runtime,
-                               "defaultBaseimageTriggerName",
-                               TriggerStatus.Enabled)),*/
-                       agentConfiguration: new AgentProperties(cpu: 2)
-                       );
-            task.Validate();
-
-            _registryClient.Tasks.Create(_rgName, _acrName, taskName, task);
-
-            //_log.Info("running task");
-            Run run = _registryClient.Registries.ScheduleRun(_rgName, _acrName, new TaskRunRequest(taskName));
-
-            //_log.Info("Run ID: " + run.RunId);
-            List<String> waitingStatus = new List<String>();
+            client = new RestClient($"https://dev.azure.com/patle/23b82bfb-5bab-4c97-8e1a-1ae8d771e222/_apis/build/builds/{runId}?api-version=5.0");
+            request = new RestRequest(Method.GET);
+            request.AddHeader("Authorization", "Basic cGF0bGU6dmtkbmszeG1kNGdlN3BuMmh0cG1ncm53YWlod3hxajdvcTd3Znlydm83YWxxbnJ5ZXc2cQ==");
             
-            waitingStatus.Add(RunStatus.Queued);
-            waitingStatus.Add(RunStatus.Started);
-            waitingStatus.Add(RunStatus.Running);
-            int sleepTime = 1;//1 second
-            while (waitingStatus.Contains(run.Status))
+            while (true)
             {
                 //_log.Info("run status : " + run.Status);
-                run = _registryClient.Runs.Get(_rgName, _acrName, run.RunId);
-                System.Threading.Thread.Sleep(sleepTime * 1000);  //milliseconds
-                sleepTime = sleepTime * 2;
-            }
-            if (run.Status != RunStatus.Succeeded)
-            {
-                throw new Exception(String.Format("Run Failed {0} {1} {2}", run.Id, run.Name, run.Task));
+                response = client.Execute(request);
+                json = JsonConvert.DeserializeObject<dynamic>(response.Content.ToString());
+                String status = json.status;
+                String result = json.result;
+                if (status.Equals("completed"))
+                {
+                    if (result.Equals("succeeded"))
+                    {
+                        break;
+                    }
+                    throw new Exception($"run failed, id: {runId} message: {result}");
+                }
+                System.Threading.Thread.Sleep(10 * 1000);  // 10 sec
             }
 
-            //_log.Info("run status : " + run.Status);
-            RegistryListCredentialsResult registryCreds = _registryClient.Registries.ListCredentials(_rgName, _acrName);
-            String acrPassword = registryCreds.Passwords[0].Value;
-
-            return acrPassword;
+            return "";
         }
 
         public string CreateWebapp(String version, String acrPassword, String appName, String imageName, String planName)

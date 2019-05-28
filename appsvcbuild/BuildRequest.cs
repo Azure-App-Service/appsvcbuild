@@ -89,14 +89,7 @@ namespace appsvcbuild
 
         private static String getDotnetcoreTemplate(String version)
         {
-            if (version.StartsWith("1"))
-            {
-                return "debian-8";
-            }
-            else
-            {
-                return "debian-9";
-            }
+            return "debian-9";
         }
 
         private static String getNodeTemplate(String version)

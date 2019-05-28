@@ -142,6 +142,7 @@ namespace appsvcbuild
                         throw e;
                     }
                     LogInfo("trying again");
+                    System.Threading.Thread.Sleep(1 * 60 * 1000);  //1 min
                 }
             }
         }

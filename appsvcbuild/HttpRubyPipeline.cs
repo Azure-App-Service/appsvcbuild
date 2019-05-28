@@ -129,10 +129,8 @@ namespace appsvcbuild
                     tries--;
                     _mailUtils._version = br.Version;
                     LogInfo("creating pipeline for Ruby " + br.Version);
-                    //await PushGithubBaseAsync(br);
-                    //await CreateRubyBasePipeline(br);
-                    //await PushGithubHostingStartAsync(br);
-                    //await CreateRubyHostingStartPipeline(br);
+                    await PushGithubHostingStartAsync(br);
+                    await CreateRubyHostingStartPipeline(br);
                     LogInfo(String.Format("Ruby {0} built", br.Version));
                     return true;
                 }
@@ -147,17 +145,6 @@ namespace appsvcbuild
                     LogInfo("trying again");
                 }
             }
-        }
-
-        public static async System.Threading.Tasks.Task CreateRubyBasePipeline(BuildRequest br)
-        {
-            String rubyVersionDash = br.Version.Replace(".", "-");
-            String taskName = String.Format("appsvcbuild-ruby-base-{0}-task", rubyVersionDash);            
-
-            LogInfo("creating acr task for ruby base " + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.RubyBaseOutputRepoURL, _secretsUtils._gitToken, br.RubyBaseOutputImageName);
-            LogInfo("done creating acr task for ruby base " + br.Version);
-            return;
         }
 
         public static async System.Threading.Tasks.Task CreateRubyHostingStartPipeline(BuildRequest br)
@@ -175,49 +162,7 @@ namespace appsvcbuild
             LogInfo("done creating webapp for ruby hostingstart " + br.Version);
             return;
         }
-
-        private static async System.Threading.Tasks.Task PushGithubBaseAsync(BuildRequest br)
-        {
-            LogInfo("creating github files for ruby base " + br.Version);
-            String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
-            _githubUtils.CreateDir(parent);
-
-            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
-            String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.RubyBaseOutputRepoName);
-
-            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.TemplateRepoBranchName);
-            _githubUtils.CreateDir(localOutputRepoPath);
-            if (await _githubUtils.RepoExistsAsync(br.RubyBaseOutputRepoOrgName, br.RubyBaseOutputRepoName))
-            {
-                _githubUtils.Clone(
-                     br.RubyBaseOutputRepoURL,
-                     localOutputRepoPath,
-                     br.RubyBaseOutputRepoBranchName);
-            }
-            else
-            {
-                await _githubUtils.InitGithubAsync(br.RubyBaseOutputRepoOrgName, br.RubyBaseOutputRepoName);
-                _githubUtils.Init(localOutputRepoPath);
-                _githubUtils.AddRemote(localOutputRepoPath, br.RubyBaseOutputRepoOrgName, br.RubyBaseOutputRepoName);
-            }
-
-            _githubUtils.DeepCopy(
-                String.Format("{0}\\{1}\\base_images", localTemplateRepoPath, br.TemplateName),
-                localOutputRepoPath,
-                false);
-            _githubUtils.FillTemplate(
-                String.Format("{0}\\DockerFile", localOutputRepoPath),
-                new List<String> { String.Format("ENV RUBY_VERSION=\"{0}\"", br.Version) },
-                new List<int> { 4 });
-
-            _githubUtils.Stage(localOutputRepoPath, "*");
-            _githubUtils.CommitAndPush(localOutputRepoPath, br.RubyBaseOutputRepoBranchName, String.Format("[appsvcbuild] Add ruby {0}", br.Version));
-            //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for ruby base " + br.Version);
-            return;
-        }
-
+        
         private static async System.Threading.Tasks.Task PushGithubHostingStartAsync(BuildRequest br)
         {
             LogInfo("creating github files for ruby " + br.Version);
@@ -245,14 +190,13 @@ namespace appsvcbuild
             }
 
             _githubUtils.DeepCopy(
-                String.Format("{0}\\{1}\\main_images", localTemplateRepoPath, br.TemplateName),
+                String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
                 localOutputRepoPath,
                 false);
             _githubUtils.FillTemplate(
                 String.Format("{0}\\DockerFile", localOutputRepoPath),
-                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/{0}", br.RubyBaseOutputImageName),
-                                   String.Format("RUN export RUBY_VERSION=\"{0}\"", br.Version)},
-                new List<int> { 1, 4 });
+                new List<String> { String.Format("ENV RUBY_VERSION=\"{0}\"", br.Version) },
+                new List<int> { 4 });
 
             _githubUtils.Stage(localOutputRepoPath, "*");
             _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add ruby {0}", br.Version));

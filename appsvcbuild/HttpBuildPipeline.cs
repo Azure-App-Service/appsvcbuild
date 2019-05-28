@@ -48,7 +48,7 @@ namespace appsvcbuild
                     result = await HttpKuduPipeline.Run(br, log);
                     break;
             }
-            log.LogInformation($"Result: result");
+            log.LogInformation($"Result: {result}");
             
             return result;
         }

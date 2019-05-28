@@ -48,21 +48,6 @@ namespace appsvcbuild
         [JsonProperty("webAppName")]
         public string WebAppName;
 
-        [JsonProperty("rubyBaseOutputRepoURL")]
-        public string RubyBaseOutputRepoURL;
-
-        [JsonProperty("rubyBaseOutputRepoName")]
-        public string RubyBaseOutputRepoName;
-
-        [JsonProperty("rubyBaseOutputRepoOrgName")]
-        public string RubyBaseOutputRepoOrgName;
-
-        [JsonProperty("rubyBaseOutputRepoBranchName")]
-        public string RubyBaseOutputRepoBranchName;
-
-        [JsonProperty("rubyBaseOutputImageName")]
-        public string RubyBaseOutputImageName;
-
         [JsonProperty("email")]
         public string Email;
 
@@ -142,7 +127,7 @@ namespace appsvcbuild
 
         private static String getRubyTemplate(String version)
         {
-            return "templates";
+            return "template";
         }
 
         private static String getTemplate(String stack, String version)
@@ -324,28 +309,6 @@ namespace appsvcbuild
             if (TestWebAppName == null)
             {
                 TestWebAppName = String.Format("appsvcbuild-{0}-app-{1}-site", Stack, Version.Replace(".", "-"));
-            }
-            if (RubyBaseOutputRepoURL == null)
-            {
-                RubyBaseOutputRepoURL = String.Format("https://github.com/blessedimagepipeline/rubybase-{0}.git", Version);
-            }
-            if (RubyBaseOutputRepoName == null)
-            {
-                String[] splitted = RubyBaseOutputRepoURL.Split('/');
-                RubyBaseOutputRepoName = splitted[splitted.Length - 1].Replace(".git", "");
-            }
-            if (RubyBaseOutputRepoOrgName == null)
-            {
-                String[] splitted = RubyBaseOutputRepoURL.Split('/');
-                RubyBaseOutputRepoOrgName = splitted[splitted.Length - 2];
-            }
-            if (RubyBaseOutputRepoBranchName == null)
-            {
-                RubyBaseOutputRepoBranchName = "master";
-            }
-            if (RubyBaseOutputImageName == null)
-            {
-                RubyBaseOutputImageName = String.Format("rubybase:{0}", Version);
             }
         }
     }

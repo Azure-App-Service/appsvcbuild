@@ -42,6 +42,8 @@ namespace appsvcbuild
         public String _subId { get; set; }
         public String _sendGridApiKey { get; set; }
         public String _appsvcbuildfuncMaster { get; set; }
+        public String _acrPassword { get; set; }
+        public String _pipelineToken { get; set; }
         public AzureCredentials _credentials { get; set; }
 
         public SecretsUtils() {
@@ -74,6 +76,8 @@ namespace appsvcbuild
             _gitToken = (await kvClient.GetSecretAsync("https://appsvcbuild-vault.vault.azure.net/", "gitToken")).Value;
             _sendGridApiKey = (await kvClient.GetSecretAsync("https://appsvcbuild-vault.vault.azure.net/", "sendGridApiKey")).Value;
             _appsvcbuildfuncMaster = (await kvClient.GetSecretAsync("https://appsvcbuild-vault.vault.azure.net/", "appsvcbuildfuncMaster")).Value;
+            _acrPassword = (await kvClient.GetSecretAsync("https://appsvcbuild-vault.vault.azure.net/", "acrPassword")).Value;
+            _pipelineToken = (await kvClient.GetSecretAsync("https://appsvcbuild-vault.vault.azure.net/", "pipelineToken")).Value;
 
             if (_clientId == "")
             {
@@ -100,6 +104,14 @@ namespace appsvcbuild
                 throw new Exception("missing setting gitToken in sendGridApiKey");
             }
             if (_appsvcbuildfuncMaster == "")
+            {
+                throw new Exception("missing setting gitToken in appsvcbuildfuncMaster");
+            }
+            if (_acrPassword == "")
+            {
+                throw new Exception("missing setting gitToken in appsvcbuildfuncMaster");
+            }
+            if (_pipelineToken == "")
             {
                 throw new Exception("missing setting gitToken in appsvcbuildfuncMaster");
             }

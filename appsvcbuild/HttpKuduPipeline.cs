@@ -38,7 +38,7 @@ using Microsoft.ApplicationInsights;
 
 namespace appsvcbuild
 {
-    public static class HttpPythonPipeline
+    public static class HttpKuduPipeline
     {
         private static ILogger _log;
         private static SecretsUtils _secretsUtils;
@@ -52,16 +52,16 @@ namespace appsvcbuild
         public static async Task<String> Run(BuildRequest br, ILogger log)
         {
             _telemetry = new TelemetryClient();
-            _telemetry.TrackEvent("HttpPythonPipeline started");
+            _telemetry.TrackEvent("HttpKuduPipeline started");
             await InitUtils(log);
 
-            LogInfo("HttpPythonPipeline request received");
+            LogInfo("HttpKuduPipeline request received");
 
             try
             {
                 _mailUtils._buildRequest = br;
-                LogInfo($"HttpPythonPipeline executed at: { DateTime.Now }");
-                LogInfo(String.Format("new Python BuildRequest found {0}", br.ToString()));
+                LogInfo($"HttpKuduPipeline executed at: { DateTime.Now }");
+                LogInfo(String.Format("new Kudu BuildRequest found {0}", br.ToString()));
 
                 Boolean success = await MakePipeline(br, log);
                 await _mailUtils.SendSuccessMail(new List<String> { br.Version }, GetLog());
@@ -103,7 +103,7 @@ namespace appsvcbuild
             _emailLog = new StringBuilder();
             _secretsUtils = new SecretsUtils();
             await _secretsUtils.GetSecrets();
-            _mailUtils = new MailUtils(new SendGridClient(_secretsUtils._sendGridApiKey), "Python");
+            _mailUtils = new MailUtils(new SendGridClient(_secretsUtils._sendGridApiKey), "Kudu");
             _dockerhubUtils = new DockerhubUtils();
             _githubUtils = new GitHubUtils(_secretsUtils._gitToken);
             _pipelineUtils = new PipelineUtils(
@@ -128,12 +128,10 @@ namespace appsvcbuild
                 {
                     tries--;
                     _mailUtils._version = br.Version;
-                    LogInfo("Creating pipeline for Python " + br.Version);
+                    LogInfo("Creating pipeline for Kudu " + br.Version);
                     await PushGithubAsync(br);
-                    await CreatePythonHostingStartPipeline(br);
-                    await PushGithubAppAsync(br);
-                    await CreatePythonAppPipeline(br);
-                    LogInfo(String.Format("Python {0} built", br.Version));
+                    await CreateKuduHostingStartPipeline(br);
+                    LogInfo(String.Format("Kudu {0} built", br.Version));
                     return true;
                 }
                 catch (Exception e)
@@ -141,7 +139,7 @@ namespace appsvcbuild
                     LogInfo(e.ToString());
                     if (tries <= 0)
                     {
-                        LogInfo(String.Format("Python {0} failed", br.Version));
+                        LogInfo(String.Format("Kudu {0} failed", br.Version));
                         throw e;
                     }
                     LogInfo("trying again");
@@ -150,47 +148,21 @@ namespace appsvcbuild
             }
         }
 
-        public static async Task<Boolean> CreatePythonHostingStartPipeline(BuildRequest br)
+        public static async Task<Boolean> CreateKuduHostingStartPipeline(BuildRequest br)
         {
-            LogInfo("creating pipeling for python hostingstart " + br.Version);
+            String kuduVersionDash = br.Version.Replace(".", "-");
+            String taskName = String.Format("appsvcbuild-kudu-hostingstart-{0}-task", kuduVersionDash);
 
-            String pythonVersionDash = br.Version.Replace(".", "-");
-            String taskName = String.Format("appsvcbuild-python-hostingstart-{0}-task", pythonVersionDash);
-            String planName = "appsvcbuild-python-plan";
-
-            LogInfo("creating acr task for python hostingstart " + br.Version);
+            LogInfo("creating acr task for kudu hostingstart " + br.Version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, _secretsUtils._gitToken, br.OutputImageName, _secretsUtils._pipelineToken);
-            LogInfo("done creating acr task for python hostingstart " + br.Version);
-
-            LogInfo("creating webapp for python hostingstart " + br.Version);
-            String cdUrl = _pipelineUtils.CreateWebapp(br.Version, _secretsUtils._acrPassword, br.WebAppName, br.OutputImageName, planName);
-            LogInfo("done creating webapp for python hostingstart " + br.Version);
-
-            return true;
-        }
-
-        public static async Task<Boolean> CreatePythonAppPipeline(BuildRequest br)
-        {
-            LogInfo("Creating pipeline for Python app " + br.Version);
-
-            String pythonVersionDash = br.Version.Replace(".", "-");
-            String taskName = String.Format("appsvcbuild-python-app-{0}-task", pythonVersionDash);
-            String planName = "appsvcbuild-python-app-plan";
-
-            LogInfo("Creating acr task for Python app" + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, _secretsUtils._gitToken, br.TestOutputImageName, _secretsUtils._pipelineToken);
-            LogInfo("done creating acr task for python app" + br.Version);
-
-            LogInfo("Creating webapp for Python app" + br.Version);
-            String cdUrl = _pipelineUtils.CreateWebapp(br.Version, _secretsUtils._acrPassword, br.TestWebAppName, br.TestOutputImageName, planName);
-            LogInfo("Done creating webapp for Python app" + br.Version);
+            LogInfo("done creating acr task for kudu hostingstart " + br.Version);
 
             return true;
         }
 
         private static async Task<Boolean> PushGithubAsync(BuildRequest br)
         {
-            LogInfo("Creating github files for Python " + br.Version);
+            LogInfo("creating github files for kudu " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String random = new Random().Next(0, 9999).ToString();
             String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}{1}", timeStamp, random);
@@ -214,64 +186,17 @@ namespace appsvcbuild
                 _githubUtils.Init(localOutputRepoPath);
                 _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoOrgName, br.OutputRepoName);
             }
+
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
                 localOutputRepoPath,
                 false);
-            _githubUtils.FillTemplate(
-                String.Format("{0}\\DockerFile", localOutputRepoPath),
-                new List<String> { String.Format("FROM {0}", br.BaseImageName) },
-                new List<int> { 1 });
 
             _githubUtils.Stage(localOutputRepoPath, "*");
-            _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add python {0}", br.Version));
+            _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add kudu {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            LogInfo("Done creating github files for Python " + br.Version);
 
-            return true;
-        }
-
-        private static async Task<Boolean> PushGithubAppAsync(BuildRequest br)
-        {
-            LogInfo("Creating github files for Python app" + br.Version);
-            String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-            String random = new Random().Next(0, 9999).ToString();
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}{1}", timeStamp, random);
-            _githubUtils.CreateDir(parent);
-
-            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TestTemplateRepoName);
-            String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.TestOutputRepoName);
-
-            _githubUtils.Clone(br.TestTemplateRepoURL, localTemplateRepoPath, br.TestTemplateRepoBranchName);
-            _githubUtils.CreateDir(localOutputRepoPath);
-            if (await _githubUtils.RepoExistsAsync(br.TestOutputRepoOrgName, br.TestOutputRepoName))
-            {
-                _githubUtils.Clone(
-                    br.TestOutputRepoURL,
-                    localOutputRepoPath,
-                    br.TestOutputRepoBranchName);
-            }
-            else
-            {
-                await _githubUtils.InitGithubAsync(br.TestOutputRepoOrgName, br.TestOutputRepoName);
-                _githubUtils.Init(localOutputRepoPath);
-                _githubUtils.AddRemote(localOutputRepoPath, br.TestOutputRepoOrgName, br.TestOutputRepoName);
-            }
-
-            _githubUtils.DeepCopy(
-                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TestTemplateName),
-                localOutputRepoPath,
-                false);
-            _githubUtils.FillTemplate(
-                String.Format("{0}\\DockerFile", localOutputRepoPath),
-                new List<String>{ String.Format("FROM appsvcbuildacr.azurecr.io/{0}", br.TestBaseImageName) },
-                new List<int> { 1 });
-
-            _githubUtils.Stage(localOutputRepoPath, "*");
-            _githubUtils.CommitAndPush(localOutputRepoPath, br.TestOutputRepoBranchName, String.Format("[appsvcbuild] Add python {0}", br.Version));
-            //_githubUtils.CleanUp(parent);
-            LogInfo("Done creating github files for Python app" + br.Version);
-
+            LogInfo("done creating github files for kudu " + br.Version);
             return true;
         }
     }

@@ -42,11 +42,11 @@ namespace appsvcbuild
             _gitToken = gitToken;
         }
 
-        public async Task<bool> RepoExistsAsync(String repoName)
+        public async Task<bool> RepoExistsAsync(String orgName, String repoName)
         {
             HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
-            String url = String.Format("https://api.github.com/repos/blessedimagepipeline/{0}", repoName);
+            String url = String.Format("https://api.github.com/repos/{0}/{1}", orgName, repoName);
             
             HttpResponseMessage response = await client.GetAsync(url);
             
@@ -58,25 +58,25 @@ namespace appsvcbuild
             return true;
         }
 
-        public async Task<Boolean> InitGithubAsync(String name)
+        public async Task<Boolean> InitGithubAsync(String orgName, String repoName)
         {
             HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
-            String url = String.Format("https://api.github.com/orgs/blessedimagepipeline/repos?access_token={0}", _gitToken);
-            String body = "{ \"name\": " + JsonConvert.SerializeObject(name) + " }";
+            String url = String.Format("https://api.github.com/orgs/{0}/repos?access_token={1}", orgName, _gitToken);
+            String body = "{ \"name\": " + JsonConvert.SerializeObject(repoName) + " }";
 
             HttpResponseMessage response = await client.PostAsync(url, new StringContent(body));
             String result = await response.Content.ReadAsStringAsync();
 
             if (response.StatusCode == HttpStatusCode.Created)
             {
-                _log.LogInformation(String.Format("created repo {0}", name));
+                _log.LogInformation(String.Format("created repo {0}/{1}", orgName, repoName));
             }
             else
             {
                 //TODO add retyry logic
-                //throw new Exception(String.Format("unable to create github repo {0}", name));
-                _log.LogInformation(String.Format("unable to create github repo {0}", name));
+                //throw new Exception(String.Format("unable to create github repo {0}/{1}", orgName, repoName));
+                _log.LogInformation(String.Format("unable to create github  repo {0}/{1}", orgName, repoName));
             }
             return true;    //return when done
         }
@@ -86,15 +86,19 @@ namespace appsvcbuild
             Repository.Init(dir);
         }
 
-        public void AddRemote(String dir, String repoName)
+        public void AddRemote(String dir, String orgName, String repoName)
         {
             Repository repo = new Repository(dir);
-            Remote remote = repo.Network.Remotes.Add("origin", String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName));
+            Remote remote = repo.Network.Remotes.Add("origin", String.Format("https://github.com/{0}/{1}.git", orgName, repoName));
             repo.Branches.Update(repo.Head, b => b.Remote = remote.Name, b => b.UpstreamBranch = repo.Head.CanonicalName);
         }
 
 
-        public void CopyFile(String source, String target) {
+        public void CopyFile(String source, String target, Boolean force) {
+            if (force)
+            {
+                new FileInfo(target).Delete();
+            }
             CopyFile(new FileInfo(source), new FileInfo(target));
         }
 
@@ -103,8 +107,12 @@ namespace appsvcbuild
             source.CopyTo(target.ToString());
         }
 
-        public void DeepCopy(String source, String target)
+        public void DeepCopy(String source, String target, Boolean force)
         {
+            if (force)
+            {
+                new DirectoryInfo(target).Delete(true);
+            }
             DeepCopy(new DirectoryInfo(source), new DirectoryInfo(target));
         }
 
@@ -161,7 +169,7 @@ namespace appsvcbuild
             dirInfo.Delete();
         }
 
-        public void Clone(String githubURL, String dest)
+        public void Clone(String githubURL, String dest, String branch)
         {
             int tries = 0;
             while (tries <= 3)
@@ -169,7 +177,7 @@ namespace appsvcbuild
                 try
                 {
                     //_log.Info("cloning " + githubURL + " to " + dest);
-                    Repository.Clone(githubURL, dest, new CloneOptions { BranchName = "master" });
+                    Repository.Clone(githubURL, dest, new CloneOptions { BranchName = branch });
                     break;
                 }
                 catch (LibGit2Sharp.NameConflictException ex) //folder already exisits
@@ -191,25 +199,8 @@ namespace appsvcbuild
 
         // copy template folder to dest folder
         // apply changes to dockerFile
-        public void FillTemplate(String localRepo, String template, String dest, String dockerFile, List<String> newLines, List<int> lineNumbers, bool force)
+        public void FillTemplate(String dockerFile, List<String> newLines, List<int> lineNumbers)
         {
-            if (force)
-            {
-                Delete(dest);
-            }
-
-            if (Directory.Exists(dest))
-            {
-                //_log.Info(dest + " already exist");
-                return;
-            }
-
-            //_log.Info("deep copying");
-            // copy template to node_version
-            DirectoryInfo source = new DirectoryInfo(template);
-            DirectoryInfo target = new DirectoryInfo(dest);
-            DeepCopy(source, target);
-
             // edit dockerfile
             //_log.Info("editing dockerfile");
             for (int i = 0; i < newLines.Count; i++) {
@@ -223,7 +214,7 @@ namespace appsvcbuild
             Commands.Stage(new Repository(localRepo), path);
         }
 
-        public void CommitAndPush(String gitPath, String message)
+        public void CommitAndPush(String gitPath, String branch, String message)
         {
             try
             {
@@ -255,7 +246,7 @@ namespace appsvcbuild
                                 Username = _gitToken,
                                 Password = String.Empty
                             });
-                    repo.Network.Push(repo.Branches["master"], options);
+                    repo.Network.Push(repo.Branches[branch], options);
                 }
             }
             catch (Exception e)

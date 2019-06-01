@@ -22,11 +22,13 @@ namespace appsvcbuild
 
         public ILogger _log { get; set; }
 
+        public BuildRequest _buildRequest { get; set; }
+
         public async System.Threading.Tasks.Task SendSuccessMail(List<String> versions, String log)
         {
             List<EmailAddress> recipients = new List<EmailAddress>
             {
-                new EmailAddress("patle@microsoft.com")
+                new EmailAddress(_buildRequest.Email)
             };
             String subject = "";
             String content = "";
@@ -48,7 +50,7 @@ namespace appsvcbuild
         {
             List<EmailAddress> recipients = new List<EmailAddress>
             {
-                new EmailAddress("patle@microsoft.com")
+                new EmailAddress(_buildRequest.Email)
             };
             String subject = String.Format("{0} {1} appsvcbuild has failed", _stack, _version);
             await sendEmail(recipients, subject, String.Format("{0}\n{1}", failure, log));

@@ -41,8 +41,6 @@ namespace appsvcbuild
     public static class HttpPhpPipeline
     {
         private static ILogger _log;
-        private static String _githubURL = "https://github.com/Azure-App-Service/php-template.git";
-
         private static SecretsUtils _secretsUtils;
         private static MailUtils _mailUtils;
         private static DockerhubUtils _dockerhubUtils;
@@ -51,10 +49,7 @@ namespace appsvcbuild
         private static StringBuilder _emailLog;
         private static TelemetryClient _telemetry;
 
-        [FunctionName("HttpPhpPipeline")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
-            ILogger log)
+        public static async Task<String> Run(BuildRequest br, ILogger log)
         {
             _telemetry = new TelemetryClient();
             _telemetry.TrackEvent("HttpPhpPipeline started");
@@ -62,40 +57,33 @@ namespace appsvcbuild
 
             LogInfo("HttpPhpPipeline request received");
 
-            String requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            List<String> newTags = data?.newTags.ToObject<List<String>>();
+            try
+            {
+                _mailUtils._buildRequest = br;
+                LogInfo($"HttpPhpPipeline executed at: { DateTime.Now }");
+                LogInfo(String.Format("new Php BuildRequest found {0}", br.ToString()));
 
-            if (newTags == null)
-            {
-                LogInfo("Failed: missing parameters `newTags` in body");
-                await _mailUtils.SendFailureMail("Failed: missing parameters `newTags` in body", GetLog());
-                return new BadRequestObjectResult("Failed: missing parameters `newTags` in body");
+                Boolean success = await MakePipeline(br, log);
+                await _mailUtils.SendSuccessMail(new List<String> { br.Version }, GetLog());
+                String successMsg =
+                    $@"{{
+                        ""status"": ""success"",
+                        ""image"": ""appsvcbuildacr.azurecr.io/{br.OutputImageName}"",
+                        ""webApp"": ""https://{br.WebAppName}.azurewebsites.net""
+                    }}";
+                return successMsg;
             }
-            else if (newTags.Count == 0)
+            catch (Exception e)
             {
-                LogInfo("no new php tags found");
-                await _mailUtils.SendSuccessMail(newTags, GetLog());
-                return (ActionResult)new OkObjectResult($"no new php tags found");
-            }
-            else
-            {
-                try
-                {
-                    LogInfo($"HttpPhpPipeline executed at: { DateTime.Now }");
-                    LogInfo(String.Format("new php tags found {0}", String.Join(", ", newTags)));
-                
-                    List<String> newVersions = await MakePipeline(newTags, log);
-                    await _mailUtils.SendSuccessMail(newVersions, GetLog());
-                    return (ActionResult)new OkObjectResult($"built new php images: {String.Join(", ", newVersions)}");
-                }
-                catch (Exception e)
-                {
-                    LogInfo(e.ToString());
-                    _telemetry.TrackException(e);
-                    await _mailUtils.SendFailureMail(e.ToString(), GetLog());
-                    return new InternalServerErrorResult();
-                }
+                LogInfo(e.ToString());
+                _telemetry.TrackException(e);
+                await _mailUtils.SendFailureMail(e.ToString(), GetLog());
+                String failureMsg =
+                    $@"{{
+                        ""status"": ""failure"",
+                        ""error"": ""{e.ToString()}""
+                    }}";
+                return failureMsg;
             }
         }
 
@@ -131,199 +119,219 @@ namespace appsvcbuild
             _pipelineUtils._log = log;
         }
 
-        public static async Task<List<string>> MakePipeline(List<String> newTags, ILogger log)
+        public static async Task<Boolean> MakePipeline(BuildRequest br, ILogger log)
         {
-            List<String> newVersions = new List<String>();
-
-
-            foreach (String t in newTags)
+            int tries = 3;
+            while (true)
             {
-                String version = t.Split('-')[1].Split(':')[0]; //lazy fix
-                newVersions.Add(version);
-                int tries = 3;
-                while (true)
+                try
                 {
-                    try
+                    tries--;
+                    _mailUtils._version = br.Version;
+                    LogInfo("Creating pipeline for Php " + br.Version);
+                    await PushGithubAsync(br);
+                    await CreatePhpHostingStartPipeline(br);
+                    await PushGithubXdebugAsync(br);
+                    await CreatePhpXdebugPipeline(br);
+                    await PushGithubAppAsync(br);
+                    await CreatePhpAppPipeline(br);
+                    LogInfo(String.Format("Php {0} built", br.Version));
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    LogInfo(e.ToString());
+                    if (tries <= 0)
                     {
-                        tries--;
-                        _mailUtils._version = version;
-                        await PushGithubAsync(t, version);
-                        await CreatePhpHostingStartPipeline(version);
-                        await PushGithubAppAsync(version);
-                        await CreatePhpAppPipeline(version);
-                        LogInfo(String.Format("php {0} built", version));
-                        break;
+                        LogInfo(String.Format("Php {0} failed", br.Version));
+                        throw e;
                     }
-                    catch (Exception e)
-                    {
-                        LogInfo(e.ToString());
-                        if (tries <= 0)
-                        {
-                            LogInfo(String.Format("php {0} failed", version));
-                            throw e;
-                        }
-                        LogInfo("trying again");
-                    }
+                    LogInfo("trying again");
+                    System.Threading.Thread.Sleep(1 * 60 * 1000);  //1 min
                 }
             }
-            return newVersions;
         }
 
-        public static async Task<Boolean> CreatePhpHostingStartPipeline(String version)
+        public static async Task<Boolean> CreatePhpHostingStartPipeline(BuildRequest br)
         {
-            LogInfo("creating pipeling for php hostingstart " + version);
+            LogInfo("creating pipeling for php hostingstart " + br.Version);
 
-            String githubPath = String.Format("https://github.com/blessedimagepipeline/php-{0}-apache", version);
-            String phpVersionDash = version.Replace(".", "-");
+            String phpVersionDash = br.Version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-php-hostingstart-{0}-task", phpVersionDash);
-            String appName = String.Format("appsvcbuild-php-hostingstart-{0}-site", phpVersionDash);
-            String webhookName = String.Format("appsvcbuildphphostingstart{0}wh", version.Replace(".", ""));
-            String imageName = String.Format("php:{0}-apache", version);
             String planName = "appsvcbuild-php-plan";
 
-            LogInfo("creating acr task for php hostingstart " + version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            LogInfo("done reating acr task for php hostingstart " + version);
+            LogInfo("creating acr task for php hostingstart " + br.Version);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, _secretsUtils._gitToken, br.OutputImageName);
+            LogInfo("done reating acr task for php hostingstart " + br.Version);
 
-            LogInfo("creating webapp for php hostingstart " + version);
-            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            LogInfo("done creating webapp for php hostingstart " + version); ;
+            LogInfo("creating webapp for php hostingstart " + br.Version);
+            String cdUrl = _pipelineUtils.CreateWebapp(br.Version, acrPassword, br.WebAppName, br.OutputImageName, planName);
+            LogInfo("done creating webapp for php hostingstart " + br.Version);
 
             return true;
         }
 
-        public static async Task<Boolean> CreatePhpAppPipeline(String version)
+        public static async Task<Boolean> CreatePhpXdebugPipeline(BuildRequest br)
         {
-            LogInfo("creating pipeling for php app " + version);
+            LogInfo("creating pipeling for php app " + br.Version);
 
-            String githubPath = String.Format("https://github.com/blessedimagepipeline/php-app-{0}-apache", version);
-            String phpVersionDash = version.Replace(".", "-");
+            String phpVersionDash = br.Version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-php-app-{0}-task", phpVersionDash);
-            String appName = String.Format("appsvcbuild-php-app-{0}-site", phpVersionDash);
-            String webhookName = String.Format("appsvcbuildphpapp{0}wh", version.Replace(".", ""));
-            String imageName = String.Format("phpapp:{0}-apache", version);
+
+            LogInfo("creating acr task for php app" + br.Version);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.XdebugOutputRepoURL, _secretsUtils._gitToken, br.XdebugOutputImageName);
+            LogInfo("done creating acr task for php app" + br.Version);
+
+            return true;
+        }
+
+        public static async Task<Boolean> CreatePhpAppPipeline(BuildRequest br)
+        {
+            LogInfo("creating pipeling for php app " + br.Version);
+
+            String phpVersionDash = br.Version.Replace(".", "-");
+            String taskName = String.Format("appsvcbuild-php-app-{0}-task", phpVersionDash);
             String planName = "appsvcbuild-php-app-plan";
 
-            LogInfo("creating acr task for php app" + version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, githubPath, _secretsUtils._gitToken, imageName);
-            LogInfo("done creating acr task for php app" + version);
+            LogInfo("creating acr task for php app" + br.Version);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, _secretsUtils._gitToken, br.TestOutputImageName);
+            LogInfo("done creating acr task for php app" + br.Version);
 
-            LogInfo("creating webapp for php app" + version);
-            String cdUrl = _pipelineUtils.CreateWebapp(version, acrPassword, appName, imageName, planName);
-            LogInfo("done creating webapp for php app" + version);
+            LogInfo("creating webapp for php app" + br.Version);
+            String cdUrl = _pipelineUtils.CreateWebapp(br.Version, acrPassword, br.TestWebAppName, br.TestOutputImageName, planName);
+            LogInfo("done creating webapp for php app" + br.Version);
 
             return true;
         }
 
-        private static String getTemplate(String version)
+        private static async Task<Boolean> PushGithubAsync(BuildRequest br)
         {
-            if (version.StartsWith("5.6"))
-            {
-                return "template-5.6-apache";
-            }
-            else if (version.StartsWith("7.0"))
-            {
-                return "template-7.0-apache";
-            }
-            else if (version.StartsWith("7.2"))
-            {
-                return "template-7.2-apache";
-            }
-            else if (version.StartsWith("7.3"))
-            {
-                return "template-7.3-apache";
-            }
-            throw new Exception(String.Format("unexpected php version: {0}", version));
-        }
-
-        private static async Task<Boolean> PushGithubAsync(String tag, String version)
-        {
-            String repoName = String.Format("php-{0}-apache", version);
-
-            LogInfo("creating github files for php " + version);
-            Random random = new Random();
-            String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
-            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
+            LogInfo("creating github files for php " + br.Version);
+            String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\php-template", parent);
-            String phpRepo = String.Format("{0}\\{1}", parent, repoName);
+            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
+            String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.OutputRepoName);
 
-            _githubUtils.Clone(_githubURL, templateRepo);
-            _githubUtils.FillTemplate(
-                templateRepo,
-                String.Format("{0}\\{1}", templateRepo, getTemplate(version)),
-                String.Format("{0}\\{1}", templateRepo, repoName),
-                String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-                new List<String>{ String.Format("FROM {0}", tag), String.Format("ENV PHP_VERSION {0}", version) },
-                new List<int> { 1, 4 },
+            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.TemplateRepoBranchName);
+            _githubUtils.CreateDir(localOutputRepoPath);
+            if (await _githubUtils.RepoExistsAsync(br.OutputRepoOrgName, br.OutputRepoName))
+            {
+                _githubUtils.Clone(
+                    br.OutputRepoURL,
+                    localOutputRepoPath,
+                    br.OutputRepoBranchName);
+            }
+            else
+            {
+                await _githubUtils.InitGithubAsync(br.OutputRepoOrgName, br.OutputRepoName);
+                _githubUtils.Init(localOutputRepoPath);
+                _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoOrgName, br.OutputRepoName);
+            }
+
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
+                localOutputRepoPath,
                 false);
+            _githubUtils.FillTemplate(
+                String.Format("{0}\\DockerFile", localOutputRepoPath),
+                new List<String>{ String.Format("FROM {0}", br.BaseImageName), String.Format("ENV PHP_VERSION {0}", br.Version) },
+                new List<int> { 1, 4 }
+            );
 
-            _githubUtils.CreateDir(phpRepo);
-            if (await _githubUtils.RepoExistsAsync(repoName))
-            {
-                _githubUtils.Clone(
-                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
-                    phpRepo);
-            }
-            else
-            {
-                await _githubUtils.InitGithubAsync(repoName);
-                _githubUtils.Init(phpRepo);
-                _githubUtils.AddRemote(phpRepo, repoName);
-            }
-
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), phpRepo);
-            _githubUtils.Stage(phpRepo, "*");
-            _githubUtils.CommitAndPush(phpRepo, String.Format("[appsvcbuild] Add php {0}", version));
+            _githubUtils.Stage(localOutputRepoPath, "*");
+            _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add php {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for php " + version);
+            LogInfo("done creating github files for php " + br.Version);
 
             return true;
         }
 
-        private static async Task<Boolean> PushGithubAppAsync(String version)
+        private static async Task<Boolean> PushGithubXdebugAsync(BuildRequest br)
         {
-            String repoName = String.Format("php-app-{0}-apache", version);
 
-            LogInfo("creating github files for php app " + version);
-            Random random = new Random();
-            String i = random.Next(0, 9999).ToString(); // dont know how to delete files in functions, probably need a file/blob share
-            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", i);
+            LogInfo("creating github files for php app " + br.Version);
+            String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
             _githubUtils.CreateDir(parent);
 
-            String templateRepo = String.Format("{0}\\php-template", parent);
-            String phpRepo = String.Format("{0}\\{1}", parent, repoName);
+            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.XdebugTemplateRepoName);
+            String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.XdebugOutputRepoName);
 
-            _githubUtils.Clone(_githubURL, templateRepo);
-            _githubUtils.FillTemplate(
-               templateRepo,
-               String.Format("{0}\\template-app-apache", templateRepo),
-               String.Format("{0}\\{1}", templateRepo, repoName),
-               String.Format("{0}\\{1}\\DockerFile", templateRepo, repoName),
-               new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/php:{0}-apache", version) },
-               new List<int> { 1 },
-               false);
-
-            _githubUtils.CreateDir(phpRepo);
-            if (await _githubUtils.RepoExistsAsync(repoName))
+            _githubUtils.Clone(br.XdebugTemplateRepoURL, localTemplateRepoPath, br.XdebugTemplateRepoBranchName);
+            _githubUtils.CreateDir(localOutputRepoPath);
+            if (await _githubUtils.RepoExistsAsync(br.XdebugOutputRepoOrgName, br.XdebugOutputRepoName))
             {
                 _githubUtils.Clone(
-                    String.Format("https://github.com/blessedimagepipeline/{0}.git", repoName),
-                    phpRepo);
+                   br.XdebugOutputRepoURL,
+                   localOutputRepoPath,
+                   br.XdebugOutputRepoBranchName);
             }
             else
             {
-                await _githubUtils.InitGithubAsync(repoName);
-                _githubUtils.Init(phpRepo);
-                _githubUtils.AddRemote(phpRepo, repoName);
+                await _githubUtils.InitGithubAsync(br.XdebugOutputRepoOrgName, br.XdebugOutputRepoName);
+                _githubUtils.Init(localOutputRepoPath);
+                _githubUtils.AddRemote(localOutputRepoPath, br.XdebugOutputRepoOrgName, br.XdebugOutputRepoName);
             }
 
-            _githubUtils.DeepCopy(String.Format("{0}\\{1}", templateRepo, repoName), phpRepo);
-            _githubUtils.Stage(phpRepo, "*");
-            _githubUtils.CommitAndPush(phpRepo, String.Format("[appsvcbuild] Add php {0}", version));
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\{1}", localTemplateRepoPath, br.XdebugTemplateName),
+                localOutputRepoPath,
+                false);
+            _githubUtils.FillTemplate(
+               String.Format("{0}\\DockerFile", localOutputRepoPath),
+               new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/{0}", br.XdebugBaseImageName) },
+               new List<int> { 1 });
+
+            _githubUtils.Stage(localOutputRepoPath, "*");
+            _githubUtils.CommitAndPush(localOutputRepoPath, br.XdebugOutputRepoBranchName, String.Format("[appsvcbuild] Add php {0}", br.Version));
             //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for php app " + version);
+            LogInfo("done creating github files for php app " + br.Version);
+
+            return true;
+        }
+
+        private static async Task<Boolean> PushGithubAppAsync(BuildRequest br)
+        {
+
+            LogInfo("creating github files for php app " + br.Version);
+            String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
+            _githubUtils.CreateDir(parent);
+
+            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TestTemplateRepoName);
+            String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.TestOutputRepoName);
+
+            _githubUtils.Clone(br.TestTemplateRepoURL, localTemplateRepoPath, br.TestTemplateRepoBranchName);
+            _githubUtils.CreateDir(localOutputRepoPath);
+            if (await _githubUtils.RepoExistsAsync(br.TestOutputRepoOrgName, br.TestOutputRepoName))
+            {
+                 _githubUtils.Clone(
+                    br.TestOutputRepoURL,
+                    localOutputRepoPath,
+                    br.TestOutputRepoBranchName);
+            }
+            else
+            {
+                await _githubUtils.InitGithubAsync(br.TestOutputRepoOrgName, br.TestOutputRepoName);
+                _githubUtils.Init(localOutputRepoPath);
+                _githubUtils.AddRemote(localOutputRepoPath, br.TestOutputRepoOrgName, br.TestOutputRepoName);
+            }
+
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\{1}", localTemplateRepoPath, br.TestTemplateName),
+                localOutputRepoPath,
+                false);
+            _githubUtils.FillTemplate(
+               String.Format("{0}\\DockerFile", localOutputRepoPath),
+               new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/{0}", br.TestBaseImageName) },
+               new List<int> { 1 });
+
+            _githubUtils.Stage(localOutputRepoPath, "*");
+            _githubUtils.CommitAndPush(localOutputRepoPath, br.TestOutputRepoBranchName, String.Format("[appsvcbuild] Add php {0}", br.Version));
+            //_githubUtils.CleanUp(parent);
+            LogInfo("done creating github files for php app " + br.Version);
 
             return true;
         }

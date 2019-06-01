@@ -131,6 +131,8 @@ namespace appsvcbuild
                     LogInfo("Creating pipeline for Php " + br.Version);
                     await PushGithubAsync(br);
                     await CreatePhpHostingStartPipeline(br);
+                    await PushGithubXdebugAsync(br);
+                    await CreatePhpXdebugPipeline(br);
                     await PushGithubAppAsync(br);
                     await CreatePhpAppPipeline(br);
                     LogInfo(String.Format("Php {0} built", br.Version));
@@ -165,6 +167,20 @@ namespace appsvcbuild
             LogInfo("creating webapp for php hostingstart " + br.Version);
             String cdUrl = _pipelineUtils.CreateWebapp(br.Version, acrPassword, br.WebAppName, br.OutputImageName, planName);
             LogInfo("done creating webapp for php hostingstart " + br.Version);
+
+            return true;
+        }
+
+        public static async Task<Boolean> CreatePhpXdebugPipeline(BuildRequest br)
+        {
+            LogInfo("creating pipeling for php app " + br.Version);
+
+            String phpVersionDash = br.Version.Replace(".", "-");
+            String taskName = String.Format("appsvcbuild-php-app-{0}-task", phpVersionDash);
+
+            LogInfo("creating acr task for php app" + br.Version);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.XdebugOutputRepoURL, _secretsUtils._gitToken, br.XdebugOutputImageName);
+            LogInfo("done creating acr task for php app" + br.Version);
 
             return true;
         }
@@ -228,6 +244,50 @@ namespace appsvcbuild
             _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add php {0}", br.Version));
             //_githubUtils.CleanUp(parent);
             LogInfo("done creating github files for php " + br.Version);
+
+            return true;
+        }
+
+        private static async Task<Boolean> PushGithubXdebugAsync(BuildRequest br)
+        {
+
+            LogInfo("creating github files for php app " + br.Version);
+            String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            String parent = String.Format("D:\\home\\site\\wwwroot\\appsvcbuild{0}", timeStamp);
+            _githubUtils.CreateDir(parent);
+
+            String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.XdebugTemplateRepoName);
+            String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.XdebugOutputRepoName);
+
+            _githubUtils.Clone(br.XdebugTemplateRepoURL, localTemplateRepoPath, br.XdebugTemplateRepoBranchName);
+            _githubUtils.CreateDir(localOutputRepoPath);
+            if (await _githubUtils.RepoExistsAsync(br.XdebugOutputRepoOrgName, br.XdebugOutputRepoName))
+            {
+                _githubUtils.Clone(
+                   br.XdebugOutputRepoURL,
+                   localOutputRepoPath,
+                   br.XdebugOutputRepoBranchName);
+            }
+            else
+            {
+                await _githubUtils.InitGithubAsync(br.XdebugOutputRepoOrgName, br.XdebugOutputRepoName);
+                _githubUtils.Init(localOutputRepoPath);
+                _githubUtils.AddRemote(localOutputRepoPath, br.XdebugOutputRepoOrgName, br.XdebugOutputRepoName);
+            }
+
+            _githubUtils.DeepCopy(
+                String.Format("{0}\\{1}", localTemplateRepoPath, br.XdebugTemplateName),
+                localOutputRepoPath,
+                false);
+            _githubUtils.FillTemplate(
+               String.Format("{0}\\DockerFile", localOutputRepoPath),
+               new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/{0}", br.XdebugBaseImageName) },
+               new List<int> { 1 });
+
+            _githubUtils.Stage(localOutputRepoPath, "*");
+            _githubUtils.CommitAndPush(localOutputRepoPath, br.XdebugOutputRepoBranchName, String.Format("[appsvcbuild] Add php {0}", br.Version));
+            //_githubUtils.CleanUp(parent);
+            LogInfo("done creating github files for php app " + br.Version);
 
             return true;
         }

@@ -87,6 +87,39 @@ namespace appsvcbuild
         [JsonProperty("testWebAppName")]
         public string TestWebAppName;
 
+        [JsonProperty("xdebugTemplateRepoURL")]
+        public string XdebugTemplateRepoURL;
+
+        [JsonProperty("xdebugTemplateRepoOrgName")]
+        public string XdebugTemplateRepoOrgName;
+
+        [JsonProperty("xdebugTemplateRepoName")]
+        public string XdebugTemplateRepoName;
+
+        [JsonProperty("xdebugemplateName")]
+        public string XdebugTemplateName;
+
+        [JsonProperty("xdebugTemplateRepoBranchName")]
+        public string XdebugTemplateRepoBranchName;
+
+        [JsonProperty("xdebugBaseImageName")]
+        public string XdebugBaseImageName;
+
+        [JsonProperty("xdebugOutputRepoURL")]
+        public string XdebugOutputRepoURL;
+
+        [JsonProperty("xdebugOutputRepoName")]
+        public string XdebugOutputRepoName;
+
+        [JsonProperty("xdebugOutputRepoOrgName")]
+        public string XdebugOutputRepoOrgName;
+
+        [JsonProperty("xdebugOutputRepoBranchName")]
+        public string XdebugOutputRepoBranchName;
+
+        [JsonProperty("xdebugOutputImageName")]
+        public string XdebugOutputImageName;
+
         private static String getDotnetcoreTemplate(String version)
         {
             return "debian-9";
@@ -99,13 +132,7 @@ namespace appsvcbuild
 
         private static String getPhpTemplate(String version)
         {
-
-            if (new List<String> { "5.6", "7.0", "7.2", "7.3" }.Contains(version))
-            {
-                return String.Format("template-{0}-apache", version);
-            }
-
-            throw new Exception(String.Format("unexpected php version: {0}", version));
+            return String.Format("template-apache", version);
         }
 
         private static String getPythonTemplate(String version)
@@ -302,6 +329,52 @@ namespace appsvcbuild
             if (TestWebAppName == null)
             {
                 TestWebAppName = String.Format("appsvcbuild-{0}-app-{1}-site", Stack, Version.Replace(".", "-"));
+            }
+            if (XdebugTemplateRepoURL == null)
+            {
+                XdebugTemplateRepoURL = TemplateRepoURL;
+            }
+            if (XdebugTemplateRepoName == null)
+            {
+                XdebugTemplateRepoName = TemplateRepoName;
+            }
+            if (XdebugTemplateRepoOrgName == null)
+            {
+                XdebugTemplateRepoOrgName = TemplateRepoOrgName;
+            }
+            if (XdebugTemplateName == null)
+            {
+                XdebugTemplateName = "template-apache-xdebug";
+            }
+            if (XdebugTemplateRepoBranchName == null)
+            {
+                XdebugTemplateRepoBranchName = TemplateRepoBranchName;
+            }
+            if (XdebugBaseImageName == null)
+            {
+                XdebugBaseImageName = OutputImageName;
+            }
+            if (XdebugOutputRepoURL == null)
+            {
+                XdebugOutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-xdebug-{1}.git", Stack, Version);
+            }
+            if (XdebugOutputRepoName == null)
+            {
+                String[] splitted = XdebugOutputRepoURL.Split('/');
+                XdebugOutputRepoName = splitted[splitted.Length - 1].Replace(".git", "");
+            }
+            if (XdebugOutputRepoOrgName == null)
+            {
+                String[] splitted = XdebugOutputRepoURL.Split('/');
+                XdebugOutputRepoOrgName = splitted[splitted.Length - 2];
+            }
+            if (XdebugOutputRepoBranchName == null)
+            {
+                XdebugOutputRepoBranchName = "master";
+            }
+            if (XdebugOutputImageName == null)
+            {
+                XdebugOutputImageName = String.Format("{0}xdebug:{1}", Stack, Version);
             }
         }
     }

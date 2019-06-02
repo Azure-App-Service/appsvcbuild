@@ -190,7 +190,7 @@ namespace appsvcbuild
             LogInfo("creating github files for dotnetcore " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String random = new Random().Next(0, 9999).ToString();
-            String parent = String.Format("F:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
+            String parent = String.Format("D:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);

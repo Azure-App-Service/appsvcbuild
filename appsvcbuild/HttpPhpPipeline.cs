@@ -209,7 +209,7 @@ namespace appsvcbuild
             LogInfo("creating github files for php " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String random = new Random().Next(0, 9999).ToString();
-            String parent = String.Format("F:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
+            String parent = String.Format("D:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
@@ -257,7 +257,7 @@ namespace appsvcbuild
             LogInfo("creating github files for php xdebug " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String random = new Random().Next(0, 9999).ToString();
-            String parent = String.Format("F:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
+            String parent = String.Format("D:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.XdebugTemplateRepoName);
@@ -304,7 +304,7 @@ namespace appsvcbuild
             LogInfo("creating github files for php app " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String random = new Random().Next(0, 9999).ToString();
-            String parent = String.Format("F:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
+            String parent = String.Format("D:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TestTemplateRepoName);

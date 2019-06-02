@@ -1,0 +1,162 @@
+[
+    {
+        "stack": "node",
+        "version": "10.14",
+        "baseImageName": "mcr.microsoft.com/oryx/node-10.14:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:10.14"
+    },
+    {
+        "stack": "node",
+        "version": "10.12",
+        "baseImageName": "mcr.microsoft.com/oryx/node-10.12:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:10.12"
+    },
+    {
+        "stack": "node",
+        "version": "10.10",
+        "baseImageName": "mcr.microsoft.com/oryx/node-10.10:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:10.10"
+    },
+    {
+        "stack": "node",
+        "version": "10.1",
+        "baseImageName": "mcr.microsoft.com/oryx/node-10.1:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:10.1"
+    },
+    {
+        "stack": "node",
+        "version": "9.4",
+        "baseImageName": "mcr.microsoft.com/oryx/node-9.4:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:9.4"
+    },
+    {
+        "stack": "node",
+        "version": "8.12",
+        "baseImageName": "mcr.microsoft.com/oryx/node-8.12:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:8.12"
+    },
+    {
+        "stack": "node",
+        "version": "8.11",
+        "baseImageName": "mcr.microsoft.com/oryx/node-8.11:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:8.11"
+    },
+    {
+        "stack": "node",
+        "version": "8.9",
+        "baseImageName": "mcr.microsoft.com/oryx/node-8.9:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:8.9"
+    },
+    {
+        "stack": "node",
+        "version": "8.8",
+        "baseImageName": "mcr.microsoft.com/oryx/node-8.8:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:8.8"
+    },
+    {
+        "stack": "node",
+        "version": "8.2",
+        "baseImageName": "mcr.microsoft.com/oryx/node-8.2:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:8.2"
+    },
+    {
+        "stack": "node",
+        "version": "8.1",
+        "baseImageName": "mcr.microsoft.com/oryx/node-8.1:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:8.1"
+    },
+    {
+        "stack": "node",
+        "version": "8.0",
+        "baseImageName": "mcr.microsoft.com/oryx/node-8.0:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:8.0"
+    },
+    {
+        "stack": "node",
+        "version": "6.11",
+        "baseImageName": "mcr.microsoft.com/oryx/node-6.11:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:6.11"
+    },
+    {
+        "stack": "node",
+        "version": "6.10",
+        "baseImageName": "mcr.microsoft.com/oryx/node-6.10:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:6.10"
+    },
+    {
+        "stack": "node",
+        "version": "6.9",
+        "baseImageName": "mcr.microsoft.com/oryx/node-6.9:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:6.9"
+    },
+    {
+        "stack": "node",
+        "version": "6.6",
+        "baseImageName": "mcr.microsoft.com/oryx/node-6.6:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:6.6"
+    },
+    {
+        "stack": "node",
+        "version": "6.2",
+        "baseImageName": "mcr.microsoft.com/oryx/node-6.2:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:6.2"
+    },
+    {
+        "stack": "node",
+        "version": "4.8",
+        "baseImageName": "mcr.microsoft.com/oryx/node-4.8:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:4.8"
+    },
+    {
+        "stack": "node",
+        "version": "4.5",
+        "baseImageName": "mcr.microsoft.com/oryx/node-4.5:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:4.5"
+    },
+    {
+        "stack": "node",
+        "version": "4.4",
+        "baseImageName": "mcr.microsoft.com/oryx/node-4.4:20190518.2",
+        "templateRepoURL": "https://github.com/Azure-App-Service/node-template.git",
+        "templateRepoBranchName": "master",
+        "outputImageName": "node:4.4"
+    }
+]

@@ -173,14 +173,14 @@ namespace appsvcbuild
 
         public static async Task<Boolean> CreatePhpXdebugPipeline(BuildRequest br)
         {
-            LogInfo("creating pipeling for php app " + br.Version);
+            LogInfo("creating pipeling for php xdebug " + br.Version);
 
             String phpVersionDash = br.Version.Replace(".", "-");
             String taskName = String.Format("appsvcbuild-php-app-{0}-task", phpVersionDash);
 
             LogInfo("creating acr task for php app" + br.Version);
             String acrPassword = _pipelineUtils.CreateTask(taskName, br.XdebugOutputRepoURL, _secretsUtils._gitToken, br.XdebugOutputImageName, _secretsUtils._pipelineToken);
-            LogInfo("done creating acr task for php app" + br.Version);
+            LogInfo("done creating acr task for php xdebug" + br.Version);
 
             return true;
         }
@@ -209,7 +209,7 @@ namespace appsvcbuild
             LogInfo("creating github files for php " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String random = new Random().Next(0, 9999).ToString();
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}{1}", timeStamp, random);
+            String parent = String.Format("F:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
@@ -243,7 +243,9 @@ namespace appsvcbuild
 
             _githubUtils.Stage(localOutputRepoPath, "*");
             _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add php {0}", br.Version));
-            //_githubUtils.CleanUp(parent);
+            _githubUtils.gitDispose(localOutputRepoPath);
+            _githubUtils.gitDispose(localTemplateRepoPath);
+            _githubUtils.Delete(parent);
             LogInfo("done creating github files for php " + br.Version);
 
             return true;
@@ -252,10 +254,10 @@ namespace appsvcbuild
         private static async Task<Boolean> PushGithubXdebugAsync(BuildRequest br)
         {
 
-            LogInfo("creating github files for php app " + br.Version);
+            LogInfo("creating github files for php xdebug " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String random = new Random().Next(0, 9999).ToString();
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}{1}", timeStamp, random);
+            String parent = String.Format("F:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.XdebugTemplateRepoName);
@@ -288,8 +290,10 @@ namespace appsvcbuild
 
             _githubUtils.Stage(localOutputRepoPath, "*");
             _githubUtils.CommitAndPush(localOutputRepoPath, br.XdebugOutputRepoBranchName, String.Format("[appsvcbuild] Add php {0}", br.Version));
-            //_githubUtils.CleanUp(parent);
-            LogInfo("done creating github files for php app " + br.Version);
+            _githubUtils.gitDispose(localOutputRepoPath);
+            _githubUtils.gitDispose(localTemplateRepoPath);
+            _githubUtils.Delete(parent);
+            LogInfo("done creating github files for php xdebug " + br.Version);
 
             return true;
         }
@@ -300,7 +304,7 @@ namespace appsvcbuild
             LogInfo("creating github files for php app " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String random = new Random().Next(0, 9999).ToString();
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}{1}", timeStamp, random);
+            String parent = String.Format("F:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TestTemplateRepoName);
@@ -333,7 +337,9 @@ namespace appsvcbuild
 
             _githubUtils.Stage(localOutputRepoPath, "*");
             _githubUtils.CommitAndPush(localOutputRepoPath, br.TestOutputRepoBranchName, String.Format("[appsvcbuild] Add php {0}", br.Version));
-            //_githubUtils.CleanUp(parent);
+            _githubUtils.gitDispose(localOutputRepoPath);
+            _githubUtils.gitDispose(localTemplateRepoPath);
+            _githubUtils.Delete(parent);
             LogInfo("done creating github files for php app " + br.Version);
 
             return true;

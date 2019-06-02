@@ -1,40 +1,12 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.AspNetCore.Http;
+using Microsoft.ApplicationInsights;
+using Microsoft.Azure.Management.ContainerRegistry;
+using Microsoft.Azure.Management.WebSites;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using SendGrid;
+using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using Microsoft.Azure.WebJobs.Host;
-using LibGit2Sharp;
-using LibGit2Sharp.Handlers;
-using Microsoft.Azure.Management.Fluent;
-using Microsoft.Rest.Azure;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
-using Microsoft.Azure.Management.ResourceManager.Fluent;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
-using Microsoft.Azure.Management.ResourceManager;
-using Microsoft.Azure.Management.Storage;
-using Microsoft.Azure.Management.ContainerRegistry;
-using Microsoft.Azure.Management.ContainerRegistry.Models;
-using Microsoft.Azure.Management.WebSites;
-using Microsoft.Azure.Management.WebSites.Models;
-using Microsoft.Azure.KeyVault;
-using System.Xml.Linq;
-using Microsoft.Azure.KeyVault.Models;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
-using SendGrid;
-using SendGrid.Helpers.Mail;
-using System.Text.RegularExpressions;
-using System.Web.Http;
-using Microsoft.ApplicationInsights;
+using System.Threading.Tasks;
 
 namespace appsvcbuild
 {
@@ -193,7 +165,7 @@ namespace appsvcbuild
             LogInfo("Creating github files for Python " + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String random = new Random().Next(0, 9999).ToString();
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}{1}", timeStamp, random);
+            String parent = String.Format("D:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
@@ -225,7 +197,9 @@ namespace appsvcbuild
 
             _githubUtils.Stage(localOutputRepoPath, "*");
             _githubUtils.CommitAndPush(localOutputRepoPath, br.OutputRepoBranchName, String.Format("[appsvcbuild] Add python {0}", br.Version));
-            //_githubUtils.CleanUp(parent);
+            _githubUtils.gitDispose(localOutputRepoPath);
+            _githubUtils.gitDispose(localTemplateRepoPath);
+            _githubUtils.Delete(parent);
             LogInfo("Done creating github files for Python " + br.Version);
 
             return true;
@@ -236,7 +210,7 @@ namespace appsvcbuild
             LogInfo("Creating github files for Python app" + br.Version);
             String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             String random = new Random().Next(0, 9999).ToString();
-            String parent = String.Format("F:\\home\\site\\wwwroot\\appsvcbuild{0}{1}", timeStamp, random);
+            String parent = String.Format("F:\\local\\Temp\\appsvcbuild{0}{1}", timeStamp, random);
             _githubUtils.CreateDir(parent);
 
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TestTemplateRepoName);
@@ -269,7 +243,9 @@ namespace appsvcbuild
 
             _githubUtils.Stage(localOutputRepoPath, "*");
             _githubUtils.CommitAndPush(localOutputRepoPath, br.TestOutputRepoBranchName, String.Format("[appsvcbuild] Add python {0}", br.Version));
-            //_githubUtils.CleanUp(parent);
+            _githubUtils.gitDispose(localOutputRepoPath);
+            _githubUtils.gitDispose(localTemplateRepoPath);
+            _githubUtils.Delete(parent);
             LogInfo("Done creating github files for Python app" + br.Version);
 
             return true;

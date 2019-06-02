@@ -97,7 +97,7 @@ namespace appsvcbuild
         public void CopyFile(String source, String target, Boolean force) {
             if (force)
             {
-                new FileInfo(target).Delete();
+                Delete(target);
             }
             CopyFile(new FileInfo(source), new FileInfo(target));
         }
@@ -111,7 +111,7 @@ namespace appsvcbuild
         {
             if (force)
             {
-                new DirectoryInfo(target).Delete(true);
+                Delete(target);
             }
             DeepCopy(new DirectoryInfo(source), new DirectoryInfo(target));
         }
@@ -144,31 +144,58 @@ namespace appsvcbuild
             }
         }
 
+        public void gitDispose(String path)
+        {
+            Repository repo = new Repository(path);
+            repo.Dispose();
+        }
+
         public void Delete(String path)
         {
-            //_log.Info("delete folder " + path);
-            if (Directory.Exists(path))
-            {
-                DeleteRecursiveFolder(new DirectoryInfo(path)); // dont know how to delete files in functions, probably need a file/blob share
+            int tries = 0;
+            while (true) {
+                try
+                {
+                    FileAttributes attr = File.GetAttributes(path);
+
+                    //detect whether its a directory or file
+                    if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
+                    {
+                        var files = Directory.GetFiles(path);
+                        var directories = Directory.GetDirectories(path);
+                        foreach (var file in files)
+                        {
+                            File.SetAttributes(file, FileAttributes.Normal);
+                            File.Delete(file);
+                        }
+
+                        foreach (var dir in directories)
+                        {
+                            Delete(dir);
+                        }
+                        File.SetAttributes(path, FileAttributes.Normal);
+                        Directory.Delete(path, false);
+                    }
+                    else
+                    {
+                        FileInfo file = new FileInfo(path);
+                        file.Attributes = FileAttributes.Normal;
+                        file.Delete();
+                    }
+                    break;
+                }
+                catch(Exception e)
+                {
+                    if (tries > 3)
+                    {
+                        throw e;
+                    }
+                    System.Threading.Thread.Sleep(1 * 60 * 1000);  //60 seconds
+                    tries = tries + 1;
+                }
             }
         }
-
-        private void DeleteRecursiveFolder(DirectoryInfo dirInfo)
-        {
-            foreach (DirectoryInfo subDir in dirInfo.GetDirectories())
-            {
-                DeleteRecursiveFolder(subDir);
-            }
-
-            foreach (FileInfo file in dirInfo.GetFiles())
-            {
-                file.Attributes = FileAttributes.Normal;
-                file.Delete();
-            }
-
-            dirInfo.Delete();
-        }
-
+        
         public void Clone(String githubURL, String dest, String branch)
         {
             int tries = 0;
@@ -190,6 +217,7 @@ namespace appsvcbuild
                     System.Threading.Thread.Sleep(1 * 60 * 1000); // sleep 1 min
                     if (tries > 3)
                     {
+                        Delete(dest);
                         //_log.Info("delete repo" + githubURL);
                         throw ex;
                     }

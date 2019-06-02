@@ -96,7 +96,7 @@ namespace appsvcbuild
         [JsonProperty("xdebugTemplateRepoName")]
         public string XdebugTemplateRepoName;
 
-        [JsonProperty("xdebugemplateName")]
+        [JsonProperty("xdebugTemplateName")]
         public string XdebugTemplateName;
 
         [JsonProperty("xdebugTemplateRepoBranchName")]
@@ -132,7 +132,23 @@ namespace appsvcbuild
 
         private static String getPhpTemplate(String version)
         {
-            return String.Format("template-apache", version);
+            return "template-apache";
+        }
+
+        private static String getPhpXdebugTemplate(String version)
+        {
+            if (version.StartsWith("7"))
+            {
+                return "template-php7-apache-xdebug";
+            }
+            else if (version.StartsWith("5"))
+            {
+                return "template-php5-apache-xdebug";
+            }
+            else
+            {
+                throw new Exception(String.Format("unexpected php version: {0}", version));
+            }
         }
 
         private static String getPythonTemplate(String version)
@@ -220,7 +236,8 @@ namespace appsvcbuild
             if (Version == null && !Stack.Equals("kudu"))
             {
                 throw new Exception("missing version");
-            } else if(Stack.Equals("kudu"))
+            }
+            else if (Stack.Equals("kudu"))
             {
                 Version = "0";
             }
@@ -286,11 +303,13 @@ namespace appsvcbuild
             }
             if (TestTemplateRepoName == null)
             {
-                TestTemplateRepoName = TemplateRepoName;
+                String[] splitted = TestTemplateRepoURL.Split('/');
+                TestTemplateRepoName = splitted[splitted.Length - 1].Replace(".git", ""); ;
             }
             if (TestTemplateRepoOrgName == null)
             {
-                TestTemplateRepoOrgName = TemplateRepoOrgName;
+                String[] splitted = TestTemplateRepoURL.Split('/');
+                TestTemplateRepoOrgName = splitted[splitted.Length - 2].Replace(".git", ""); ;
             }
             if (TestTemplateName == null)
             {
@@ -336,11 +355,13 @@ namespace appsvcbuild
             }
             if (XdebugTemplateRepoName == null)
             {
-                XdebugTemplateRepoName = TemplateRepoName;
+                String[] splitted = XdebugTemplateRepoURL.Split('/');
+                XdebugTemplateRepoName = splitted[splitted.Length - 1].Replace(".git", "");
             }
             if (XdebugTemplateRepoOrgName == null)
             {
-                XdebugTemplateRepoOrgName = TemplateRepoOrgName;
+                String[] splitted = XdebugTemplateRepoURL.Split('/');
+                XdebugTemplateRepoOrgName = splitted[splitted.Length - 2].Replace(".git", "");
             }
             if (XdebugTemplateName == null)
             {

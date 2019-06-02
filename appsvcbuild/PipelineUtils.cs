@@ -110,11 +110,11 @@ namespace appsvcbuild
                 //_log.Info("run status : " + run.Status);
                 response = client.Execute(request);
                 json = JsonConvert.DeserializeObject<dynamic>(response.Content.ToString());
-                String status = json.status;
-                String result = json.result;
-                if (status.Equals("completed"))
+                var status = json.status;
+                var result = json.result;
+                if (status.ToString().ToLower().Equals("completed"))
                 {
-                    if (result.Equals("succeeded"))
+                    if (result.ToString().ToLower().Equals("succeeded"))
                     {
                         break;
                     }

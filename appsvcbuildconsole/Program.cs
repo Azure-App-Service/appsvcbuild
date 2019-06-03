@@ -24,32 +24,57 @@ namespace appsvcbuildconsole
             String text = "";
             List<BuildRequest> buildRequests = new List<BuildRequest>();
 
-            text = File.ReadAllText("../../../kudu.json");
+            text = getStack("kudu", "dev");
             //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
 
-            text = File.ReadAllText("../../../dotnetcore.json");
-            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
-
-            text = File.ReadAllText("../../../node.json");
-            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
-
-            text = File.ReadAllText("../../../php.json");
-            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
-
-            text = File.ReadAllText("../../../python.json");
-            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
-
-            text = File.ReadAllText("../../../ruby.json");
-            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
-
-            text = File.ReadAllText("../../../requests.json");
+            text = getStack("dotnetcore", "dev");
             buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+
+            text = getStack("node", "dev");
+            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+
+            text = getStack("php", "dev");
+            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+
+            text = getStack("python", "dev");
+            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+
+            text = getStack("ruby", "dev");
+            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+
+            //text = File.ReadAllText("../../../requests.json");
+            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
 
             foreach (BuildRequest br in buildRequests)
             {
                 Task.Run(() => makeRequestAsync(br));
                 System.Threading.Thread.Sleep(1 * 60 * 1000); // sleep 1 mins between builds
             }
+        }
+
+        static String getStack(String stack, String branchName)
+        {
+            return getConfig($"https://raw.githubusercontent.com/Azure-App-Service/blessedimagepipelineconfig/{branchName}/{stack}.json");
+        }
+
+        static String getConfig(String gitURL)
+        {
+            //Console.WriteLine($"getting config {gitURL}");
+
+            var client = new RestClient(gitURL);
+            client.Timeout = 1000 * 60; // 1min
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("cache-control", "no-cache");
+            
+            IRestResponse response = client.Execute(request);
+            //Console.WriteLine(response.StatusCode.ToString());
+            if (!response.StatusCode.ToString().ToLower().Contains("ok"))
+            {
+                return "";
+            }
+            //Console.WriteLine(response.Content.ToString());
+
+            return response.Content.ToString();
         }
 
         static async Task makeRequestAsync(BuildRequest br)
@@ -59,8 +84,8 @@ namespace appsvcbuildconsole
             String secretKey = File.ReadAllText("../../../secret.txt");
             //String url = String.Format("https://appsvcbuildfunc.azurewebsites.net/api/Http{0}Pipeline?code={1}", stack, secretKey);
             //String url = String.Format("http://localhost:7071/api/Http{0}Pipeline", stack);
-            //String url = String.Format("https://appsvcbuildfunc-test.azurewebsites.net/api/HttpBuildPipeline_HttpStart?code={0}", secretKey);
-            String url = "http://localhost:7071/api/HttpBuildPipeline_HttpStart";
+            String url = String.Format("https://appsvcbuildfunc-test.azurewebsites.net/api/HttpBuildPipeline_HttpStart?code={0}", secretKey);
+            //String url = "http://localhost:7071/api/HttpBuildPipeline_HttpStart";
 
             String body = JsonConvert.SerializeObject(br);
             var client = new RestClient(url);

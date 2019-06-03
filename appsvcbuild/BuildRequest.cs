@@ -147,7 +147,7 @@ namespace appsvcbuild
             }
             else
             {
-                throw new Exception(String.Format("unexpected php version: {0}", version));
+                return "";
             }
         }
 
@@ -365,7 +365,7 @@ namespace appsvcbuild
             }
             if (XdebugTemplateName == null)
             {
-                XdebugTemplateName = "template-apache-xdebug";
+                XdebugTemplateName = getPhpXdebugTemplate(Version);
             }
             if (XdebugTemplateRepoBranchName == null)
             {

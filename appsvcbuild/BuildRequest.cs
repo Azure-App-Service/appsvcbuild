@@ -12,6 +12,12 @@ namespace appsvcbuild
         [JsonProperty("version")]
         public string Version;
 
+        [JsonProperty("pullRepo")]
+        public string PullRepo;
+
+        [JsonProperty("pullId")]
+        public string PullId;
+
         [JsonProperty("templateRepoURL")]
         public string TemplateRepoURL;
 

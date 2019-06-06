@@ -196,7 +196,7 @@ namespace appsvcbuild
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
             String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.OutputRepoName);
 
-            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.TemplateRepoBranchName);
+            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.TemplateRepoBranchName, br.PullRepo, br.PullId);
             _githubUtils.CreateDir(localOutputRepoPath);
             if (await _githubUtils.RepoExistsAsync(br.OutputRepoOrgName, br.OutputRepoName))
             {
@@ -214,16 +214,14 @@ namespace appsvcbuild
 
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
-                localOutputRepoPath,
-                false);
+                localOutputRepoPath);
             _githubUtils.DeepCopy(
                 String.Format("{0}\\src\\{1}", localTemplateRepoPath, getZip(br.Version)),
-                localOutputRepoPath,
-                false);
+                localOutputRepoPath);
             _githubUtils.CopyFile(
                 String.Format("{0}\\src\\{1}\\bin.zip", localTemplateRepoPath, getZip(br.Version)),
                 String.Format("{0}\\bin.zip", localOutputRepoPath),
-                true);
+                force: true);
 
             _githubUtils.FillTemplate(
                 String.Format("{0}\\DockerFile", localOutputRepoPath),

@@ -1,11 +1,10 @@
-[
-    {
-        "stack": "php",
-        "version": "5.6",
-        "baseImageName": "mcr.microsoft.com/oryx/php-5.6:20190518.2",
-        "templateRepoURL": "https://github.com/patricklee2/php-template.git",
-        "templateRepoBranchName": "php5",
-        "outputImageName": "php:5.6",
-        "xdebugTemplateName": "template-php5-apache-xdebug"
-    }
+[{
+    "templateRepoBranchName": "dev",
+    "outputImageName": "ruby:2.3.8",
+    "version": "2.3.8",
+    "pullId": "9",
+    "pullRepo": "https://github.com/Azure-App-Service/ruby-template.git",
+    "stack": "ruby",
+    "templateRepoURL": "https://github.com/Azure-App-Service/ruby-template.git"
+}
 ]

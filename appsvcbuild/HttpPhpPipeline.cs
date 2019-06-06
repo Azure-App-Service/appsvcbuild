@@ -215,7 +215,7 @@ namespace appsvcbuild
             String localTemplateRepoPath = String.Format("{0}\\{1}", parent, br.TemplateRepoName);
             String localOutputRepoPath = String.Format("{0}\\{1}", parent, br.OutputRepoName);
 
-            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.TemplateRepoBranchName);
+            _githubUtils.Clone(br.TemplateRepoURL, localTemplateRepoPath, br.TemplateRepoBranchName, br.PullRepo, br.PullId);
             _githubUtils.CreateDir(localOutputRepoPath);
             if (await _githubUtils.RepoExistsAsync(br.OutputRepoOrgName, br.OutputRepoName))
             {
@@ -233,8 +233,7 @@ namespace appsvcbuild
 
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
-                localOutputRepoPath,
-                false);
+                localOutputRepoPath);
             _githubUtils.FillTemplate(
                 String.Format("{0}\\DockerFile", localOutputRepoPath),
                 new List<String>{ String.Format("FROM {0}", br.BaseImageName), String.Format("ENV PHP_VERSION {0}", br.Version) },
@@ -281,8 +280,7 @@ namespace appsvcbuild
 
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.XdebugTemplateName),
-                localOutputRepoPath,
-                false);
+                localOutputRepoPath);
             _githubUtils.FillTemplate(
                String.Format("{0}\\DockerFile", localOutputRepoPath),
                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/{0}", br.XdebugBaseImageName) },
@@ -328,8 +326,7 @@ namespace appsvcbuild
 
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TestTemplateName),
-                localOutputRepoPath,
-                false);
+                localOutputRepoPath);
             _githubUtils.FillTemplate(
                String.Format("{0}\\DockerFile", localOutputRepoPath),
                new List<String> { String.Format("FROM appsvcbuildacr.azurecr.io/{0}", br.TestBaseImageName) },

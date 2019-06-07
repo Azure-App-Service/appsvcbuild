@@ -6,6 +6,9 @@ namespace appsvcbuild
 {
     public class BuildRequest
     {
+        [JsonProperty("tries")]
+        public int Tries;
+
         [JsonProperty("stack")]
         public string Stack;
 
@@ -234,6 +237,11 @@ namespace appsvcbuild
 
         public void processAddDefaults()
         {
+            if (Tries == 0)
+            {
+                Tries = 1;
+            }
+
             if (Stack == null)
             {
                 throw new Exception("missing stack");

@@ -121,7 +121,7 @@ namespace appsvcbuild
 
         public static async Task<Boolean> MakePipeline(BuildRequest br, ILogger log)
         {
-            int tries = 3;
+            int tries = br.Tries;
             while (true)
             {
                 try

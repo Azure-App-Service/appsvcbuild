@@ -24,26 +24,26 @@ namespace appsvcbuildconsole
             String text = "";
             List<BuildRequest> buildRequests = new List<BuildRequest>();
 
-            text = getStack("kudu", "dev");
+            //text = getStack("kudu", "dev");
             //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
 
-            text = getStack("dotnetcore", "dev");
-            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
-
-            text = getStack("node", "dev");
-            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
-
-            text = getStack("php", "dev");
-            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
-
-            text = getStack("python", "dev");
-            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
-
-            text = getStack("ruby", "dev");
-            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
-
-            //text = File.ReadAllText("../../../requests.json");
+            //text = getStack("dotnetcore", "dev");
             //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+
+            //text = getStack("node", "dev");
+            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+
+            //text = getStack("php", "dev");
+            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+
+            //text = getStack("python", "dev");
+            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+
+            //text = getStack("ruby", "dev");
+            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+
+            text = File.ReadAllText("../../../requests.json");
+            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
 
             foreach (BuildRequest br in buildRequests)
             {
@@ -84,8 +84,8 @@ namespace appsvcbuildconsole
             String secretKey = File.ReadAllText("../../../secret.txt");
             //String url = String.Format("https://appsvcbuildfunc.azurewebsites.net/api/Http{0}Pipeline?code={1}", stack, secretKey);
             //String url = String.Format("http://localhost:7071/api/Http{0}Pipeline", stack);
-            String url = String.Format("https://appsvcbuildfunc-test.azurewebsites.net/api/HttpBuildPipeline_HttpStart?code={0}", secretKey);
-            //String url = "http://localhost:7071/api/HttpBuildPipeline_HttpStart";
+            //String url = String.Format("https://appsvcbuildfunc-test.azurewebsites.net/api/HttpBuildPipeline_HttpStart?code={0}", secretKey);
+            String url = "http://localhost:7071/api/HttpBuildPipeline_HttpStart";
 
             String body = JsonConvert.SerializeObject(br);
             var client = new RestClient(url);

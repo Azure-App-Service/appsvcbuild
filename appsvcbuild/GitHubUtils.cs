@@ -29,6 +29,7 @@ using SendGrid;
 using SendGrid.Helpers.Mail;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace appsvcbuild
 {
@@ -94,7 +95,7 @@ namespace appsvcbuild
         }
 
 
-        public void CopyFile(String source, String target, Boolean force) {
+        public void CopyFile(String source, String target, Boolean force = false) {
             if (force)
             {
                 Delete(target);
@@ -107,7 +108,7 @@ namespace appsvcbuild
             source.CopyTo(target.ToString());
         }
 
-        public void DeepCopy(String source, String target, Boolean force)
+        public void DeepCopy(String source, String target, Boolean force = false)
         {
             if (force)
             {
@@ -184,7 +185,11 @@ namespace appsvcbuild
                     }
                     break;
                 }
-                catch(Exception e)
+                catch(FileNotFoundException e)
+                {
+                    break;
+                }
+                catch (Exception e)
                 {
                     if (tries > 3)
                     {
@@ -196,7 +201,7 @@ namespace appsvcbuild
             }
         }
         
-        public void Clone(String githubURL, String dest, String branch)
+        public void Clone(String githubURL, String dest, String branch, String pullRepo = "", String pullId = "")
         {
             int tries = 0;
             while (tries <= 3)
@@ -205,6 +210,19 @@ namespace appsvcbuild
                 {
                     //_log.Info("cloning " + githubURL + " to " + dest);
                     Repository.Clone(githubURL, dest, new CloneOptions { BranchName = branch });
+                    if (pullId != "")
+                    {
+                        Repository repo = new Repository(dest);
+
+                        //git add remote upstream $pullRepo
+                        Remote remote = repo.Network.Remotes.Add("upstream", pullRepo);
+                        //git fetch upstream refs/pull/pullId/head
+                        List<String> refSpecs = new List<String> { $"pull/{pullId}/head:PR" };
+                        Commands.Fetch(repo, remote.Name, refSpecs, null, "");
+                        
+                        //git checkout FETCH_HEAD
+                        Commands.Checkout(repo, repo.Branches[$"pull/{pullId}/headrefs/heads/PR"]);
+                    }
                     break;
                 }
                 catch (LibGit2Sharp.NameConflictException ex) //folder already exisits

@@ -42,7 +42,8 @@ namespace appsvcbuild
         private String _rgName = "appsvcbuildrg";
         private String _acrName = "appsvcbuildacr";
 
-        public PipelineUtils(ContainerRegistryManagementClient registryClient, WebSiteManagementClient webappClient, String subscriptionID) {
+        public PipelineUtils(ContainerRegistryManagementClient registryClient, WebSiteManagementClient webappClient, String subscriptionID)
+        {
             _registryClient = registryClient;
             _registryClient.SubscriptionId = subscriptionID;
             _webappClient = webappClient;
@@ -104,7 +105,7 @@ namespace appsvcbuild
             client = new RestClient($"https://dev.azure.com/patle/23b82bfb-5bab-4c97-8e1a-1ae8d771e222/_apis/build/builds/{runId}?api-version=5.0");
             request = new RestRequest(Method.GET);
             request.AddHeader("Authorization", $"Basic {authToken}");
-            
+
             while (true)
             {
                 //_log.Info("run status : " + run.Status);
@@ -122,7 +123,7 @@ namespace appsvcbuild
                 }
                 System.Threading.Thread.Sleep(10 * 1000);  // 10 sec
             }
-            
+
             return "";
         }
 
@@ -153,7 +154,7 @@ namespace appsvcbuild
                     }
                 });
 
-          User user = _webappClient.WebApps.ListPublishingCredentials(_rgName, appName);
+            User user = _webappClient.WebApps.ListPublishingCredentials(_rgName, appName);
             String cdUrl = String.Format("{0}/docker/hook", user.ScmUri);
             return cdUrl;
         }
@@ -163,6 +164,19 @@ namespace appsvcbuild
             //_log.Info("creating webapp");
 
             _webappClient.WebApps.Delete(_rgName, appName, false, false);
+            return "";
+        }
+
+
+        public String DeleteImage(String acr, String repo, String tag, String username, String password)
+        {
+            String path = String.Format("https://{0}.azurecr.io/acr/v1/{1}/_tags/{2}", acr, repo, tag);
+            var client = new RestClient(path);
+            var request = new RestRequest(Method.DELETE);
+            request.AddHeader("cache-control", "no-cache");
+            String token = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(String.Format("{0}:{1}", username, password)));
+            request.AddHeader("Authorization", String.Format("Basic {0}", token));
+            IRestResponse response = client.Execute(request);
             return "";
         }
     }

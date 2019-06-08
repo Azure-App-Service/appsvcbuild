@@ -104,8 +104,15 @@ namespace appsvcbuild
         {
             // delete github repo
             await _githubUtils.DeleteGithubAsync(br.OutputRepoOrgName, br.OutputRepoName);
-            // delete acr image
 
+            // delete acr image
+            _pipelineUtils.DeleteImage(
+                "appsvcbuildacr",
+                br.OutputImageName.Split(':')[0],
+                br.OutputImageName.Split(':')[1],
+                "appsvcbuildacr",
+                _secretsUtils._acrPassword
+                );
 
             // delete webapp
             _pipelineUtils.DeleteWebapp(br.WebAppName, "appsvcbuild-dotnetcore-plan");

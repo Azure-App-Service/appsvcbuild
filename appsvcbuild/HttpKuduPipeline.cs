@@ -58,6 +58,13 @@ namespace appsvcbuild
                     }}";
                 return failureMsg;
             }
+            finally
+            {
+                if (!br.SaveArtifacts)
+                {
+                    await DeletePipeline(br, log);
+                }
+            }
         }
 
         public static void LogInfo(String message)
@@ -119,6 +126,23 @@ namespace appsvcbuild
                     System.Threading.Thread.Sleep(1 * 60 * 1000);  //1 min
                 }
             }
+        }
+
+        public static async Task<Boolean> DeletePipeline(BuildRequest br, ILogger log)
+        {
+            // delete github repo
+            await _githubUtils.DeleteGithubAsync(br.OutputRepoOrgName, br.OutputRepoName);
+
+            // delete acr image
+            _pipelineUtils.DeleteImage(
+                "appsvcbuildacr",
+                br.OutputImageName.Split(':')[0],
+                br.OutputImageName.Split(':')[1],
+                "appsvcbuildacr",
+                _secretsUtils._acrPassword
+                );
+
+            return true;
         }
 
         public static async Task<Boolean> CreateKuduHostingStartPipeline(BuildRequest br)

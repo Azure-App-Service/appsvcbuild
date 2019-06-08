@@ -58,6 +58,13 @@ namespace appsvcbuild
                     }}";
                 return failureMsg;
             }
+            finally
+            {
+                if (!br.SaveArtifacts)
+                {
+                    await DeletePipeline(br, log);
+                }
+            }
         }
 
         public static void LogInfo(String message)
@@ -123,6 +130,42 @@ namespace appsvcbuild
                     System.Threading.Thread.Sleep(1 * 60 * 1000);  //1 min
                 }
             }
+        }
+        public static async Task<Boolean> DeletePipeline(BuildRequest br, ILogger log)
+        {
+            // delete github repo
+            await _githubUtils.DeleteGithubAsync(br.OutputRepoOrgName, br.OutputRepoName);
+            await _githubUtils.DeleteGithubAsync(br.XdebugOutputRepoOrgName, br.XdebugOutputRepoName);
+            await _githubUtils.DeleteGithubAsync(br.TestOutputRepoOrgName, br.TestOutputRepoName);
+
+            // delete acr image
+            _pipelineUtils.DeleteImage(
+                "appsvcbuildacr",
+                br.OutputImageName.Split(':')[0],
+                br.OutputImageName.Split(':')[1],
+                "appsvcbuildacr",
+                _secretsUtils._acrPassword
+                );
+            _pipelineUtils.DeleteImage(
+                "appsvcbuildacr",
+                br.XdebugOutputImageName.Split(':')[0],
+                br.XdebugOutputImageName.Split(':')[1],
+                "appsvcbuildacr",
+                _secretsUtils._acrPassword
+                );
+            _pipelineUtils.DeleteImage(
+                "appsvcbuildacr",
+                br.TestOutputImageName.Split(':')[0],
+                br.TestOutputImageName.Split(':')[1],
+                "appsvcbuildacr",
+                _secretsUtils._acrPassword
+                );
+
+            // delete webapp
+            _pipelineUtils.DeleteWebapp(br.WebAppName, "appsvcbuild-php-plan");
+            _pipelineUtils.DeleteWebapp(br.TestWebAppName, "appsvcbuild-php-app-plan");
+
+            return true;
         }
 
         public static async Task<Boolean> CreatePhpHostingStartPipeline(BuildRequest br)

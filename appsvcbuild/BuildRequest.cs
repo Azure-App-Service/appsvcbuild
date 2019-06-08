@@ -21,6 +21,9 @@ namespace appsvcbuild
         [JsonProperty("pullId")]
         public string PullId;
 
+        [JsonProperty("saveArtifacts")] // default to false
+        public Boolean SaveArtifacts;
+
         [JsonProperty("templateRepoURL")]
         public string TemplateRepoURL;
 
@@ -237,6 +240,9 @@ namespace appsvcbuild
 
         public void processAddDefaults()
         {
+            String timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            String random = new Random().Next(0, 9999).ToString();
+            String randomTag = String.Format("{0}{1}", timeStamp, random);
             if (Tries == 0)
             {
                 Tries = 1;
@@ -283,7 +289,14 @@ namespace appsvcbuild
             }
             if (OutputRepoURL == null)
             {
-                OutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-{1}.git", Stack, Version);
+                if (SaveArtifacts)
+                {
+                    OutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-{1}.git", Stack, Version);
+                }
+                else
+                {
+                    OutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-{1}-{2}.git", Stack, Version, randomTag);
+                }
             }
             if (OutputRepoName == null)
             {
@@ -301,11 +314,25 @@ namespace appsvcbuild
             }
             if (OutputImageName == null)
             {
-                OutputImageName = String.Format("{0}:{1}", Stack, Version);
+                if (SaveArtifacts)
+                {
+                    OutputImageName = String.Format("{0}:{1}", Stack, Version);
+                }
+                else
+                {
+                    OutputImageName = String.Format("{0}:{1}_{2}", Stack, Version, randomTag);
+                }
             }
             if (WebAppName == null)
             {
-                WebAppName = String.Format("appsvcbuild-{0}-hostingstart-{1}-site", Stack, Version.Replace(".", "-"));
+                if (SaveArtifacts)
+                {
+                    WebAppName = String.Format("appsvcbuild-{0}-hostingstart-{1}-site", Stack, Version.Replace(".", "-"));
+                }
+                else
+                {
+                    WebAppName = String.Format("appsvcbuild-{0}-{1}-{2}", Stack, Version.Replace(".", "-"), randomTag);
+                }
             }
             if (Email == null)
             {
@@ -339,7 +366,14 @@ namespace appsvcbuild
             }
             if (TestOutputRepoURL == null)
             {
-                TestOutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-app-{1}.git", Stack, Version);
+                if (SaveArtifacts)
+                {
+                    TestOutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-app-{1}.git", Stack, Version);
+                }
+                else
+                {
+                    TestOutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-app-{1}-{2}.git", Stack, Version, randomTag);
+                }
             }
             if (TestOutputRepoName == null)
             {
@@ -357,11 +391,25 @@ namespace appsvcbuild
             }
             if (TestOutputImageName == null)
             {
-                TestOutputImageName = String.Format("{0}app:{1}", Stack, Version);
+                if (SaveArtifacts)
+                {
+                    TestOutputImageName = String.Format("{0}app:{1}", Stack, Version);
+                }
+                else
+                {
+                    TestOutputImageName = String.Format("{0}app:{1}_{2}", Stack, Version, randomTag);
+                }
             }
             if (TestWebAppName == null)
             {
-                TestWebAppName = String.Format("appsvcbuild-{0}-app-{1}-site", Stack, Version.Replace(".", "-"));
+                if (SaveArtifacts)
+                {
+                    TestWebAppName = String.Format("appsvcbuild-{0}-app-{1}-site", Stack, Version.Replace(".", "-"));
+                }
+                else
+                {
+                    TestWebAppName = String.Format("appsvcbuild-{0}-app-{1}-{2}", Stack, Version.Replace(".", "-"), randomTag);
+                }
             }
             if (XdebugTemplateRepoURL == null)
             {
@@ -391,7 +439,13 @@ namespace appsvcbuild
             }
             if (XdebugOutputRepoURL == null)
             {
-                XdebugOutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-xdebug-{1}.git", Stack, Version);
+                if (SaveArtifacts)
+                {
+                    XdebugOutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-xdebug-{1}.git", Stack, Version);
+                }else
+                {
+                    XdebugOutputRepoURL = String.Format("https://github.com/blessedimagepipeline/{0}-xdebug-{1}-{2}.git", Stack, Version, randomTag);
+                }
             }
             if (XdebugOutputRepoName == null)
             {
@@ -409,7 +463,15 @@ namespace appsvcbuild
             }
             if (XdebugOutputImageName == null)
             {
-                XdebugOutputImageName = String.Format("{0}xdebug:{1}", Stack, Version);
+                if (SaveArtifacts)
+                {
+                    XdebugOutputImageName = String.Format("{0}xdebug:{1}", Stack, Version);
+                }
+                else
+                {
+                    XdebugOutputImageName = String.Format("{0}xdebug:{1}_{2}", Stack, Version, randomTag);
+
+                }
             }
         }
     }

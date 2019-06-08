@@ -79,6 +79,34 @@ namespace appsvcbuild
                 //throw new Exception(String.Format("unable to create github repo {0}/{1}", orgName, repoName));
                 _log.LogInformation(String.Format("unable to create github  repo {0}/{1}", orgName, repoName));
             }
+
+            // wait until ready
+            System.Threading.Thread.Sleep(1 * 60 * 1000);  //60 seconds
+            return true;    //return when done
+        }
+
+        public async Task<Boolean> DeleteGithubAsync(String orgName, String repoName)
+        {
+            HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
+            String url = String.Format("https://api.github.com/repos/{0}/{1}?access_token={2}", orgName, repoName, _gitToken);
+
+            HttpResponseMessage response = await client.DeleteAsync(url);
+            String result = await response.Content.ReadAsStringAsync();
+
+            if (response.StatusCode == HttpStatusCode.NoContent)
+            {
+                _log.LogInformation(String.Format("deleted repo {0}/{1}", orgName, repoName));
+            }
+            else
+            {
+                //TODO add retyry logic
+                //throw new Exception(String.Format("unable to create github repo {0}/{1}", orgName, repoName));
+                _log.LogInformation(String.Format("unable to delete github  repo {0}/{1}", orgName, repoName));
+            }
+
+            // wait until ready
+            System.Threading.Thread.Sleep(1 * 60 * 1000);  //60 seconds
             return true;    //return when done
         }
 

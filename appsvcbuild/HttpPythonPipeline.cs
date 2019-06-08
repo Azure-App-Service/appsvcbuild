@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace appsvcbuild
 {
@@ -40,8 +41,7 @@ namespace appsvcbuild
                 String successMsg =
                     $@"{{
                         ""status"": ""success"",
-                        ""image"": ""appsvcbuildacr.azurecr.io/{br.OutputImageName}"",
-                        ""webApp"": ""https://{br.WebAppName}.azurewebsites.net""
+                        ""input"" : {JsonConvert.SerializeObject(br)}
                     }}";
                 return successMsg;
             }
@@ -53,7 +53,8 @@ namespace appsvcbuild
                 String failureMsg =
                     $@"{{
                         ""status"": ""failure"",
-                        ""error"": ""{e.ToString()}""
+                        ""error"": ""{e.ToString()}"",
+                        ""input"" : {JsonConvert.SerializeObject(br)}
                     }}";
                 return failureMsg;
             }

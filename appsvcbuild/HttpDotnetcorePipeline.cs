@@ -1,40 +1,13 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.AspNetCore.Http;
+using Microsoft.ApplicationInsights;
+using Microsoft.Azure.Management.ContainerRegistry;
+using Microsoft.Azure.Management.WebSites;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using SendGrid;
+using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using Microsoft.Azure.WebJobs.Host;
-using LibGit2Sharp;
-using LibGit2Sharp.Handlers;
-using Microsoft.Azure.Management.Fluent;
-using Microsoft.Rest.Azure;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
-using Microsoft.Azure.Management.ResourceManager.Fluent;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
-using Microsoft.Azure.Management.ResourceManager;
-using Microsoft.Azure.Management.Storage;
-using Microsoft.Azure.Management.ContainerRegistry;
-using Microsoft.Azure.Management.ContainerRegistry.Models;
-using Microsoft.Azure.Management.WebSites;
-using Microsoft.Azure.Management.WebSites.Models;
-using Microsoft.Azure.KeyVault;
-using System.Xml.Linq;
-using Microsoft.Azure.KeyVault.Models;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
-using SendGrid;
-using SendGrid.Helpers.Mail;
-using System.Text.RegularExpressions;
-using System.Web.Http;
-using Microsoft.ApplicationInsights;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace appsvcbuild
 {
@@ -64,12 +37,12 @@ namespace appsvcbuild
                 LogInfo(String.Format("new Dotnetcore BuildRequest found {0}", br.ToString()));
 
                 Boolean success = await MakePipeline(br, log);
+
                 await _mailUtils.SendSuccessMail(new List<String> { br.Version }, GetLog());
                 String successMsg =
                     $@"{{
                         ""status"": ""success"",
-                        ""image"": ""appsvcbuildacr.azurecr.io/{br.OutputImageName}"",
-                        ""webApp"": ""https://{br.WebAppName}.azurewebsites.net""
+                        ""input"" : {JsonConvert.SerializeObject(br)}
                     }}";
                 return successMsg;
             }
@@ -81,9 +54,17 @@ namespace appsvcbuild
                 String failureMsg =
                     $@"{{
                         ""status"": ""failure"",
-                        ""error"": ""{e.ToString()}""
+                        ""error"": ""{e.ToString()}"",
+                        ""input"" : {JsonConvert.SerializeObject(br)}
                     }}";
                 return failureMsg;
+            }
+            finally
+            {
+                if (!br.SaveArtifacts)
+                {
+                    await DeletePipeline(br, log);
+                }
             }
         }
 
@@ -117,6 +98,18 @@ namespace appsvcbuild
             _dockerhubUtils._log = log;
             _githubUtils._log = log;
             _pipelineUtils._log = log;
+        }
+
+        public static async Task<Boolean> DeletePipeline(BuildRequest br, ILogger log)
+        {
+            // delete github repo
+            await _githubUtils.DeleteGithubAsync(br.OutputRepoOrgName, br.OutputRepoName);
+            // delete acr image
+
+
+            // delete webapp
+            _pipelineUtils.DeleteWebapp(br.WebAppName, "appsvcbuild-dotnetcore-plan");
+            return true;
         }
 
         public static async Task<Boolean> MakePipeline(BuildRequest br, ILogger log)

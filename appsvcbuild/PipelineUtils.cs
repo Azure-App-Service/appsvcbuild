@@ -153,9 +153,17 @@ namespace appsvcbuild
                     }
                 });
 
-            User user = _webappClient.WebApps.ListPublishingCredentials(_rgName, appName);
+          User user = _webappClient.WebApps.ListPublishingCredentials(_rgName, appName);
             String cdUrl = String.Format("{0}/docker/hook", user.ScmUri);
             return cdUrl;
+        }
+
+        public string DeleteWebapp(String appName, String planName)
+        {
+            //_log.Info("creating webapp");
+
+            _webappClient.WebApps.Delete(_rgName, appName, false, false);
+            return "";
         }
     }
 }

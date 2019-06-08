@@ -27,8 +27,8 @@ namespace appsvcbuildconsole
             //text = getStack("kudu", "dev");
             //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
 
-            //text = getStack("dotnetcore", "dev");
-            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+            text = getStack("dotnetcore", "dev");
+            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
 
             //text = getStack("node", "dev");
             //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
@@ -42,8 +42,8 @@ namespace appsvcbuildconsole
             //text = getStack("ruby", "dev");
             //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
 
-            text = File.ReadAllText("../../../requests.json");
-            buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
+            //text = File.ReadAllText("../../../requests.json");
+            //buildRequests.AddRange(JsonConvert.DeserializeObject<List<BuildRequest>>(text));
 
             foreach (BuildRequest br in buildRequests)
             {

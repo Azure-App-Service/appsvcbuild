@@ -81,7 +81,10 @@ namespace appsvcbuild
             }
 
             // wait until ready
-            System.Threading.Thread.Sleep(1 * 60 * 1000);  //60 seconds
+            while (!await RepoExistsAsync(orgName, repoName))
+            {
+                System.Threading.Thread.Sleep(60 * 1000);  // 60 sec
+            }
             return true;    //return when done
         }
 
@@ -228,7 +231,7 @@ namespace appsvcbuild
                 }
             }
         }
-        
+
         public void Clone(String githubURL, String dest, String branch, String pullRepo = "", String pullId = "")
         {
             int tries = 0;
@@ -257,6 +260,10 @@ namespace appsvcbuild
                 {
                     break;
                 }
+                catch (LibGit2Sharp.NotFoundException ex)
+                {
+                    Repository.Clone(githubURL, dest);
+                }
                 catch (Exception ex)
                 {
                     tries = tries + 1;
@@ -268,6 +275,30 @@ namespace appsvcbuild
                         throw ex;
                     }
                 }
+            }
+        }
+
+        public void Checkout(String gitPath, String branchName)
+        {
+            using (var repo = new Repository(gitPath))
+            {
+                var branch = repo.Branches[branchName];
+
+                if (branch == null)
+                {
+                    if (branchName.Equals("master"))
+                    {
+                        return;
+                    }
+                    repo.CreateBranch(branchName);
+                    branch = repo.Branches[branchName];
+                }
+
+                Branch currentBranch = Commands.Checkout(repo, branch);
+                Remote remote = repo.Network.Remotes["origin"];
+                repo.Branches.Update(currentBranch,
+                    b => b.Remote = remote.Name,
+                    b => b.UpstreamBranch = currentBranch.CanonicalName);
             }
         }
 

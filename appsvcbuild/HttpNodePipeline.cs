@@ -174,7 +174,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-node-plan";
 
             LogInfo("creating acr task for node hostingstart " + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, _secretsUtils._gitToken, br.OutputImageName, _secretsUtils._pipelineToken);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, _secretsUtils._gitToken,
+                br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for node hostingstart " + br.Version);
 
             LogInfo("creating webapp for node hostingstart " + br.Version);
@@ -191,7 +192,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-node-app-plan";
 
             LogInfo("creating acr task for node app" + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, _secretsUtils._gitToken, br.TestOutputImageName, _secretsUtils._pipelineToken);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, br.TestOutputRepoBranchName, _secretsUtils._gitToken, br.TestOutputImageName, 
+                _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for node app" + br.Version);
 
             LogInfo("creating webapp for node app " + br.Version);
@@ -227,7 +229,7 @@ namespace appsvcbuild
                 _githubUtils.Init(localOutputRepoPath);
                 _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoOrgName, br.OutputRepoName);
             }
-
+            _githubUtils.Checkout(localOutputRepoPath, br.OutputRepoBranchName);
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
                 localOutputRepoPath);
@@ -273,7 +275,7 @@ namespace appsvcbuild
                 _githubUtils.Init(localOutputRepoPath);
                 _githubUtils.AddRemote(localOutputRepoPath, br.TestOutputRepoOrgName, br.TestOutputRepoName);
             }
-
+            _githubUtils.Checkout(localOutputRepoPath, br.OutputRepoBranchName);
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TestTemplateName),
                 localOutputRepoPath);

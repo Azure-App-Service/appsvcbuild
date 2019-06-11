@@ -177,7 +177,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-php-plan";
 
             LogInfo("creating acr task for php hostingstart " + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, _secretsUtils._gitToken, br.OutputImageName, _secretsUtils._pipelineToken);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, _secretsUtils._gitToken,
+                br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done reating acr task for php hostingstart " + br.Version);
 
             LogInfo("creating webapp for php hostingstart " + br.Version);
@@ -195,7 +196,8 @@ namespace appsvcbuild
             String taskName = String.Format("appsvcbuild-php-app-{0}-task", phpVersionDash);
 
             LogInfo("creating acr task for php app" + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.XdebugOutputRepoURL, _secretsUtils._gitToken, br.XdebugOutputImageName, _secretsUtils._pipelineToken);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.XdebugOutputRepoURL, br.XdebugOutputRepoBranchName, _secretsUtils._gitToken,
+                br.XdebugOutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for php xdebug" + br.Version);
 
             return true;
@@ -210,7 +212,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-php-app-plan";
 
             LogInfo("creating acr task for php app" + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, _secretsUtils._gitToken, br.TestOutputImageName, _secretsUtils._pipelineToken);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, br.TestOutputRepoBranchName, _secretsUtils._gitToken,
+                br.TestOutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for php app" + br.Version);
 
             LogInfo("creating webapp for php app" + br.Version);
@@ -246,7 +249,7 @@ namespace appsvcbuild
                 _githubUtils.Init(localOutputRepoPath);
                 _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoOrgName, br.OutputRepoName);
             }
-
+            _githubUtils.Checkout(localOutputRepoPath, br.OutputRepoBranchName);
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
                 localOutputRepoPath);
@@ -293,7 +296,7 @@ namespace appsvcbuild
                 _githubUtils.Init(localOutputRepoPath);
                 _githubUtils.AddRemote(localOutputRepoPath, br.XdebugOutputRepoOrgName, br.XdebugOutputRepoName);
             }
-
+            _githubUtils.Checkout(localOutputRepoPath, br.OutputRepoBranchName);
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.XdebugTemplateName),
                 localOutputRepoPath);
@@ -339,7 +342,7 @@ namespace appsvcbuild
                 _githubUtils.Init(localOutputRepoPath);
                 _githubUtils.AddRemote(localOutputRepoPath, br.TestOutputRepoOrgName, br.TestOutputRepoName);
             }
-
+            _githubUtils.Checkout(localOutputRepoPath, br.OutputRepoBranchName);
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TestTemplateName),
                 localOutputRepoPath);

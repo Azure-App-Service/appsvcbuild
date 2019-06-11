@@ -1,11 +1,16 @@
 [
     {
+        "pullRepo": null,
         "templateRepoBranchName": "dev",
-        "outputImageName": "ruby:2.3.8",
-        "version": "2.3.8",
-        "pullId": "9",
-        "pullRepo": "https://github.com/Azure-App-Service/ruby-template.git",
         "stack": "ruby",
-        "templateRepoURL": "https://github.com/Azure-App-Service/ruby-template.git"
+        "pullId": null,
+        "useCache": true,
+        "outputRepoURL": "https://github.com/blessedimagepipeline/ruby-2.3.8.git",
+        "outputImageName": "ruby:dev-2.3.8",
+        "version": "2.3.8",
+        "outputRepoBranchName": "dev",
+        "webAppName": "appsvcbuild-ruby-2-3-8-dev",
+        "templateRepoURL": "https://github.com/Azure-App-Service/ruby-template.git",
+        "saveArtifacts": true
     }
 ]

@@ -24,6 +24,9 @@ namespace appsvcbuild
         [JsonProperty("saveArtifacts")] // default to false
         public Boolean SaveArtifacts;
 
+        [JsonProperty("useCache")] // default to false
+        public Boolean UseCache;
+
         [JsonProperty("templateRepoURL")]
         public string TemplateRepoURL;
 
@@ -285,7 +288,7 @@ namespace appsvcbuild
             }
             if (BaseImageName == null)
             {
-                BaseImageName = String.Format("mcr.microsoft.com/oryx/{0}-{1}:latest", Stack, Version);
+                BaseImageName = String.Format("mcr.microsoft.com/oryx/{0}:{1}-latest", Stack, Version);
             }
             if (OutputRepoURL == null)
             {

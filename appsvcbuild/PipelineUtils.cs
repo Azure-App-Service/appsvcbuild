@@ -50,23 +50,7 @@ namespace appsvcbuild
             _webappClient.SubscriptionId = subscriptionID;
         }
 
-
-        public void CreateWebhook(String cdUrl, String webhookName, String imageName)
-        {
-            //_log.Info("creating webhook: " + webhookName);
-            Registry reg = _registryClient.Registries.Get(_rgName, _acrName);
-
-            _registryClient.Webhooks.Create(_rgName, _acrName, webhookName, new WebhookCreateParameters
-            {
-                Location = "westus2",
-                Actions = new List<string>() { WebhookAction.Push },
-                ServiceUri = cdUrl,
-                Status = WebhookStatus.Enabled,
-                Scope = imageName
-            });
-        }
-
-        public String CreateTask(String taskName, String gitPath, String gitToken, String imageName, String authToken)
+        public String CreateTask(String taskName, String gitPath, String branchName, String gitToken, String imageName, String authToken, Boolean useCache = false)
         {
             //_log.Info("creating task: " + taskName);
 
@@ -92,7 +76,9 @@ namespace appsvcbuild
                     ""demands"": [],
                     ""parameters"": ""{{
                         \""gitURL\"":\""{gitPath}\"",
-                        \""imageTag\"":\""{imageName}\""
+                        \""branchName\"":\""{branchName}\"",
+                        \""imageTag\"":\""{imageName}\"",
+                        \""useCache\"": \""{useCache.ToString()}\""
                     }}""
                 }}";
             request.AddParameter("undefined", body, ParameterType.RequestBody);

@@ -155,7 +155,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-dotnetcore-plan";
 
             LogInfo("creating acr task for dotnetcore hostingstart " + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, _secretsUtils._gitToken, br.OutputImageName, _secretsUtils._pipelineToken);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, _secretsUtils._gitToken, br.OutputImageName, 
+                _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for dotnetcore hostingstart " + br.Version);
 
             LogInfo("creating webapp for dotnetcore hostingstart " + br.Version);
@@ -211,7 +212,7 @@ namespace appsvcbuild
                 _githubUtils.Init(localOutputRepoPath);
                 _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoOrgName, br.OutputRepoName);
             }
-
+            _githubUtils.Checkout(localOutputRepoPath, br.OutputRepoBranchName);
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
                 localOutputRepoPath);

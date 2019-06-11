@@ -151,8 +151,8 @@ namespace appsvcbuild
             String taskName = String.Format("appsvcbuild-kudu-hostingstart-{0}-task", kuduVersionDash);
 
             LogInfo("creating acr task for kudu hostingstart " + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, _secretsUtils._gitToken, br.OutputImageName,
-                _secretsUtils._pipelineToken, useCache: br.UseCache);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, br.OutputRepoName,
+                _secretsUtils._gitToken, br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for kudu hostingstart " + br.Version);
 
             return true;

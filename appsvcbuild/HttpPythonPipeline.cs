@@ -168,8 +168,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-python-plan";
 
             LogInfo("creating acr task for python hostingstart " + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, _secretsUtils._gitToken,
-                br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, br.OutputRepoName,
+                _secretsUtils._gitToken, br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for python hostingstart " + br.Version);
 
             LogInfo("creating webapp for python hostingstart " + br.Version);
@@ -188,8 +188,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-python-app-plan";
 
             LogInfo("Creating acr task for Python app" + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, br.TestOutputRepoBranchName, _secretsUtils._gitToken,
-                br.TestOutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, br.TestOutputRepoBranchName, br.TestOutputRepoName,
+                _secretsUtils._gitToken, br.TestOutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for python app" + br.Version);
 
             LogInfo("Creating webapp for Python app" + br.Version);

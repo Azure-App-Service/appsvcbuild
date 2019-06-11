@@ -154,8 +154,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-ruby-hostingstart-plan";
 
             LogInfo("creating acr task for ruby hostingstart" + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, _secretsUtils._gitToken,
-                br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, br.OutputRepoName,
+                _secretsUtils._gitToken, br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for ruby hostingstart" + br.Version);
 
             LogInfo("creating webapp for ruby hostingstart " + br.Version);

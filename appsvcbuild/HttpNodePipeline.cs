@@ -174,8 +174,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-node-plan";
 
             LogInfo("creating acr task for node hostingstart " + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, _secretsUtils._gitToken,
-                br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, br.OutputRepoName,
+                _secretsUtils._gitToken, br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for node hostingstart " + br.Version);
 
             LogInfo("creating webapp for node hostingstart " + br.Version);
@@ -192,8 +192,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-node-app-plan";
 
             LogInfo("creating acr task for node app" + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, br.TestOutputRepoBranchName, _secretsUtils._gitToken, br.TestOutputImageName, 
-                _secretsUtils._pipelineToken, useCache: br.UseCache);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, br.TestOutputRepoBranchName, br.TestOutputRepoName,
+                _secretsUtils._gitToken, br.TestOutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for node app" + br.Version);
 
             LogInfo("creating webapp for node app " + br.Version);

@@ -50,7 +50,7 @@ namespace appsvcbuild
             _webappClient.SubscriptionId = subscriptionID;
         }
 
-        public String CreateTask(String taskName, String gitPath, String branchName, String gitToken, String imageName, String authToken, Boolean useCache = false)
+        public String CreateTask(String taskName, String gitPath, String branchName, String repoName, String gitToken, String imageName, String authToken, Boolean useCache = false)
         {
             //_log.Info("creating task: " + taskName);
 
@@ -77,6 +77,7 @@ namespace appsvcbuild
                     ""parameters"": ""{{
                         \""gitURL\"":\""{gitPath}\"",
                         \""branchName\"":\""{branchName}\"",
+                        \""repoName\"":\""{repoName}\"",
                         \""imageTag\"":\""{imageName}\"",
                         \""useCache\"": \""{useCache.ToString()}\""
                     }}""

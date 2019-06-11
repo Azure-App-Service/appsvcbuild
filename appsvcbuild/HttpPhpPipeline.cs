@@ -177,8 +177,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-php-plan";
 
             LogInfo("creating acr task for php hostingstart " + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, _secretsUtils._gitToken,
-                br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.OutputRepoURL, br.OutputRepoBranchName, br.OutputRepoName,
+                _secretsUtils._gitToken, br.OutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done reating acr task for php hostingstart " + br.Version);
 
             LogInfo("creating webapp for php hostingstart " + br.Version);
@@ -196,8 +196,8 @@ namespace appsvcbuild
             String taskName = String.Format("appsvcbuild-php-app-{0}-task", phpVersionDash);
 
             LogInfo("creating acr task for php app" + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.XdebugOutputRepoURL, br.XdebugOutputRepoBranchName, _secretsUtils._gitToken,
-                br.XdebugOutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.XdebugOutputRepoURL, br.XdebugOutputRepoBranchName, br.XdebugOutputRepoName,
+                _secretsUtils._gitToken, br.XdebugOutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for php xdebug" + br.Version);
 
             return true;
@@ -212,8 +212,8 @@ namespace appsvcbuild
             String planName = "appsvcbuild-php-app-plan";
 
             LogInfo("creating acr task for php app" + br.Version);
-            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, br.TestOutputRepoBranchName, _secretsUtils._gitToken,
-                br.TestOutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
+            String acrPassword = _pipelineUtils.CreateTask(taskName, br.TestOutputRepoURL, br.TestOutputRepoBranchName, br.TestOutputRepoName,
+                _secretsUtils._gitToken, br.TestOutputImageName, _secretsUtils._pipelineToken, useCache: br.UseCache);
             LogInfo("done creating acr task for php app" + br.Version);
 
             LogInfo("creating webapp for php app" + br.Version);

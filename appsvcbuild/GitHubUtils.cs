@@ -182,8 +182,16 @@ namespace appsvcbuild
             repo.Dispose();
         }
 
-        public void Delete(String path)
+        public void Delete(String path, Boolean skipGit = false, String root = "")
         {
+            if (root.Equals(""))
+            {
+                root = path;
+            }
+            if (skipGit && path.Contains(".git"))
+            {
+                return;
+            }
             int tries = 0;
             while (true) {
                 try
@@ -203,10 +211,13 @@ namespace appsvcbuild
 
                         foreach (var dir in directories)
                         {
-                            Delete(dir);
+                            Delete(dir, skipGit, root);
                         }
                         File.SetAttributes(path, FileAttributes.Normal);
-                        Directory.Delete(path, false);
+                        if (!skipGit || !path.Equals(root))
+                        {
+                            Directory.Delete(path, false);
+                        }
                     }
                     else
                     {

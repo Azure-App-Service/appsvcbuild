@@ -213,6 +213,7 @@ namespace appsvcbuild
                 _githubUtils.AddRemote(localOutputRepoPath, br.OutputRepoOrgName, br.OutputRepoName);
             }
             _githubUtils.Checkout(localOutputRepoPath, br.OutputRepoBranchName);
+            _githubUtils.Delete(localOutputRepoPath, skipGit: true);
             _githubUtils.DeepCopy(
                 String.Format("{0}\\{1}", localTemplateRepoPath, br.TemplateName),
                 localOutputRepoPath);

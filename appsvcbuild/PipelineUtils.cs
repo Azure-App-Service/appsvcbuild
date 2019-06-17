@@ -154,7 +154,6 @@ namespace appsvcbuild
             return "";
         }
 
-
         public String DeleteImage(String acr, String repo, String tag, String username, String password)
         {
             String path = String.Format("https://{0}.azurecr.io/acr/v1/{1}/_tags/{2}", acr, repo, tag);

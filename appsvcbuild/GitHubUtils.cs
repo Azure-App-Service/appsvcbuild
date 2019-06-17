@@ -45,72 +45,122 @@ namespace appsvcbuild
 
         public async Task<bool> RepoExistsAsync(String orgName, String repoName)
         {
-            HttpClient client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
-            String url = String.Format("https://api.github.com/repos/{0}/{1}", orgName, repoName);
-            
-            HttpResponseMessage response = await client.GetAsync(url);
-            
-            if(response.StatusCode == HttpStatusCode.NotFound)
+            int tries = 0;
+            while (true)
             {
-                return false;
-            }
+                try
+                {
+                    HttpClient client = new HttpClient();
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
+                    String url = String.Format("https://api.github.com/repos/{0}/{1}", orgName, repoName);
 
-            return true;
+                    HttpResponseMessage response = await client.GetAsync(url);
+
+                    if (response.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        return false;
+                    }
+
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    if (tries >= 3)
+                    {
+                        throw e;
+                    }
+                    tries = tries + 1;
+                    System.Threading.Thread.Sleep(5 * 60 * 1000); // too many requests to github sleep for 5 mins
+                }
+            }
         }
 
         public async Task<Boolean> InitGithubAsync(String orgName, String repoName)
         {
-            HttpClient client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
-            String url = String.Format("https://api.github.com/orgs/{0}/repos?access_token={1}", orgName, _gitToken);
-            String body = "{ \"name\": " + JsonConvert.SerializeObject(repoName) + " }";
-
-            HttpResponseMessage response = await client.PostAsync(url, new StringContent(body));
-            String result = await response.Content.ReadAsStringAsync();
-
-            if (response.StatusCode == HttpStatusCode.Created)
+            int tries = 0;
+            while (true)
             {
-                _log.LogInformation(String.Format("created repo {0}/{1}", orgName, repoName));
-            }
-            else
-            {
-                //TODO add retyry logic
-                //throw new Exception(String.Format("unable to create github repo {0}/{1}", orgName, repoName));
-                _log.LogInformation(String.Format("unable to create github  repo {0}/{1}", orgName, repoName));
-            }
+                try
+                {
+                    HttpClient client = new HttpClient();
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
+                    String url = String.Format("https://api.github.com/orgs/{0}/repos?access_token={1}", orgName, _gitToken);
+                    String body = "{ \"name\": " + JsonConvert.SerializeObject(repoName) + " }";
 
-            // wait until ready
-            while (!await RepoExistsAsync(orgName, repoName))
-            {
-                System.Threading.Thread.Sleep(60 * 1000);  // 60 sec
+                    HttpResponseMessage response = await client.PostAsync(url, new StringContent(body));
+                    String result = await response.Content.ReadAsStringAsync();
+
+                    if (response.StatusCode == HttpStatusCode.Created)
+                    {
+                        _log.LogInformation(String.Format("created repo {0}/{1}", orgName, repoName));
+                    }
+                    else
+                    {
+                        //TODO add retyry logic
+                        //throw new Exception(String.Format("unable to create github repo {0}/{1}", orgName, repoName));
+                        _log.LogInformation(String.Format("unable to create github  repo {0}/{1}", orgName, repoName));
+                    }
+
+                    // wait until ready
+                    while (!await RepoExistsAsync(orgName, repoName))
+                    {
+                        System.Threading.Thread.Sleep(60 * 1000);  // 60 sec
+                    }
+                    return true;    //return when done
+                }
+                catch (Exception e)
+                {
+                    if (tries >= 3)
+                    {
+                        throw e;
+                    }
+                    tries = tries + 1;
+                    System.Threading.Thread.Sleep(5 * 60 * 1000); // too many requests to github sleep for 5 mins
+                }
             }
-            return true;    //return when done
+            
         }
 
         public async Task<Boolean> DeleteGithubAsync(String orgName, String repoName)
         {
-            HttpClient client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
-            String url = String.Format("https://api.github.com/repos/{0}/{1}?access_token={2}", orgName, repoName, _gitToken);
-
-            HttpResponseMessage response = await client.DeleteAsync(url);
-            String result = await response.Content.ReadAsStringAsync();
-
-            if (response.StatusCode == HttpStatusCode.NoContent)
+            int tries = 0;
+            while (true)
             {
-                _log.LogInformation(String.Format("deleted repo {0}/{1}", orgName, repoName));
-            }
-            else
-            {
-                //TODO add retyry logic
-                //throw new Exception(String.Format("unable to create github repo {0}/{1}", orgName, repoName));
-                _log.LogInformation(String.Format("unable to delete github  repo {0}/{1}", orgName, repoName));
-            }
+                try
+                {
+                    HttpClient client = new HttpClient();
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("patricklee2");
+                    String url = String.Format("https://api.github.com/repos/{0}/{1}?access_token={2}", orgName, repoName, _gitToken);
 
-            // wait until ready
-            System.Threading.Thread.Sleep(1 * 60 * 1000);  //60 seconds
-            return true;    //return when done
+                    HttpResponseMessage response = await client.DeleteAsync(url);
+                    String result = await response.Content.ReadAsStringAsync();
+
+                    if (response.StatusCode == HttpStatusCode.NoContent)
+                    {
+                        _log.LogInformation(String.Format("deleted repo {0}/{1}", orgName, repoName));
+                    }
+                    else
+                    {
+                        //TODO add retyry logic
+                        //throw new Exception(String.Format("unable to create github repo {0}/{1}", orgName, repoName));
+                        _log.LogInformation(String.Format("unable to delete github  repo {0}/{1}", orgName, repoName));
+                    }
+
+                    // wait until ready
+                    System.Threading.Thread.Sleep(1 * 60 * 1000);  //60 seconds
+                    return true;    //return when done
+                }
+                catch (Exception ex)
+                {
+                    tries = tries + 1;
+                    System.Threading.Thread.Sleep(1 * 60 * 1000); // sleep 1 min
+                    if (tries > 3)
+                    {
+                        //_log.Info("delete repo" + githubURL);
+                        throw ex;
+                    }
+                }
+            }
         }
 
         public void Init(String dir)
@@ -225,11 +275,11 @@ namespace appsvcbuild
                         file.Attributes = FileAttributes.Normal;
                         file.Delete();
                     }
-                    break;
+                    return;
                 }
                 catch(FileNotFoundException e)
                 {
-                    break;
+                    return;
                 }
                 catch (Exception e)
                 {
@@ -246,13 +296,13 @@ namespace appsvcbuild
         public void Clone(String githubURL, String dest, String branch, String pullRepo = "", String pullId = "")
         {
             int tries = 0;
-            while (tries <= 3)
+            while (true)
             {
                 try
                 {
                     //_log.Info("cloning " + githubURL + " to " + dest);
                     Repository.Clone(githubURL, dest, new CloneOptions { BranchName = branch });
-                    if (pullId != "")
+                    if (pullId != null && pullId != "")
                     {
                         Repository repo = new Repository(dest);
 
@@ -265,11 +315,11 @@ namespace appsvcbuild
                         //git checkout FETCH_HEAD
                         Commands.Checkout(repo, repo.Branches[$"pull/{pullId}/headrefs/heads/PR"]);
                     }
-                    break;
+                    return;
                 }
                 catch (LibGit2Sharp.NameConflictException ex) //folder already exisits
                 {
-                    break;
+                    return;
                 }
                 catch (LibGit2Sharp.NotFoundException ex)
                 {
@@ -291,25 +341,42 @@ namespace appsvcbuild
 
         public void Checkout(String gitPath, String branchName)
         {
-            using (var repo = new Repository(gitPath))
+            int tries = 0;
+            while (true)
             {
-                var branch = repo.Branches[branchName];
-
-                if (branch == null)
+                try
                 {
-                    if (branchName.Equals("master"))
+                    using (var repo = new Repository(gitPath))
                     {
+                        var branch = repo.Branches[branchName];
+
+                        if (branch == null)
+                        {
+                            if (branchName.Equals("master"))
+                            {
+                                return;
+                            }
+                            repo.CreateBranch(branchName);
+                            branch = repo.Branches[branchName];
+                        }
+
+                        Branch currentBranch = Commands.Checkout(repo, branch);
+                        Remote remote = repo.Network.Remotes["origin"];
+                        repo.Branches.Update(currentBranch,
+                            b => b.Remote = remote.Name,
+                            b => b.UpstreamBranch = currentBranch.CanonicalName);
                         return;
                     }
-                    repo.CreateBranch(branchName);
-                    branch = repo.Branches[branchName];
                 }
-
-                Branch currentBranch = Commands.Checkout(repo, branch);
-                Remote remote = repo.Network.Remotes["origin"];
-                repo.Branches.Update(currentBranch,
-                    b => b.Remote = remote.Name,
-                    b => b.UpstreamBranch = currentBranch.CanonicalName);
+                catch (Exception ex)
+                {
+                    tries = tries + 1;
+                    System.Threading.Thread.Sleep(1 * 60 * 1000); // sleep 1 min
+                    if (tries > 3)
+                    {
+                        throw ex;
+                    }
+                }
             }
         }
 
@@ -330,45 +397,55 @@ namespace appsvcbuild
             Commands.Stage(new Repository(localRepo), path);
         }
 
-        public void CommitAndPush(String gitPath, String branch, String message)
+        public Boolean CommitAndPush(String gitPath, String branch, String message)
         {
-            try
+            int tries = 0;
+            while (true)
             {
-                using (Repository repo = new Repository(gitPath))
+                try
                 {
-                    // git commit
-                    // Create the committer's signature and commit
-                    //_log.Info("git commit");
-                    Signature author = new Signature("appsvcbuild", "patle@microsoft.com", DateTime.Now);
-                    Signature committer = author;
-
-                    // Commit to the repository
-                    try
+                    using (Repository repo = new Repository(gitPath))
                     {
-                        Commit commit = repo.Commit(message, author, committer);
-                    }
-                    catch (Exception e)
-                    {
-                        //_log.info("Empty commit");
-                    }
+                        // git commit
+                        // Create the committer's signature and commit
+                        //_log.Info("git commit");
+                        Signature author = new Signature("appsvcbuild", "patle@microsoft.com", DateTime.Now);
+                        Signature committer = author;
 
-                    // git push
-                    //_log.Info("git push");
-                    LibGit2Sharp.PushOptions options = new LibGit2Sharp.PushOptions();
-                    options.CredentialsProvider = new CredentialsHandler(
-                        (url, usernameFromUrl, types) =>
-                            new UsernamePasswordCredentials()
-                            {
-                                Username = _gitToken,
-                                Password = String.Empty
-                            });
-                    repo.Network.Push(repo.Branches[branch], options);
+                        // Commit to the repository
+                        try
+                        {
+                            Commit commit = repo.Commit(message, author, committer);
+                        }
+                        catch (Exception e)
+                        {
+                            //_log.info("Empty commit");
+                        }
+
+                        // git push
+                        //_log.Info("git push");
+                        LibGit2Sharp.PushOptions options = new LibGit2Sharp.PushOptions();
+                        options.CredentialsProvider = new CredentialsHandler(
+                            (url, usernameFromUrl, types) =>
+                                new UsernamePasswordCredentials()
+                                {
+                                    Username = _gitToken,
+                                    Password = String.Empty
+                                });
+                        repo.Network.Push(repo.Branches[branch], options);
+                        return true;
+                    }
                 }
-            }
-            catch (Exception e)
-            {
-                //TODO better retry logic
-                _log.LogInformation(e.ToString());
+                catch (Exception ex)
+                {
+                    tries = tries + 1;
+                    System.Threading.Thread.Sleep(1 * 60 * 1000); // sleep 1 min
+                    if (tries > 3)
+                    {
+                        //_log.Info("delete repo" + githubURL);
+                        throw ex;
+                    }
+                }
             }
         }
     }

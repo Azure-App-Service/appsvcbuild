@@ -18,7 +18,7 @@
     <PackageReference Include="Microsoft.Azure.Management.Websites" Version="2.0.1" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.DurableTask" Version="1.8.0" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.24" />
-    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
     <PackageReference Include="RestSharp" Version="106.6.9" />
     <PackageReference Include="Sendgrid" Version="9.10.0" />
   </ItemGroup>
